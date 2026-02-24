@@ -37,15 +37,20 @@ export const load: PageServerLoad = async ({ params }) => {
 			modelId: generationItems.modelId,
 			modelName: generationItems.modelName,
 			html: generationItems.html,
+			status: generationItems.status,
+			error: generationItems.error,
 			createdAt: generationItems.createdAt
 		})
 		.from(generationItems)
 		.where(eq(generationItems.generationId, params.id))
 		.orderBy(asc(generationItems.createdAt));
 
+	// Filter to only include completed items
+	const completedItems = items.filter((item) => item.status === 'completed' && item.html);
+
 	return {
 		generation: generation[0],
 		creator: creator[0] || null,
-		items
+		items: completedItems
 	};
 };

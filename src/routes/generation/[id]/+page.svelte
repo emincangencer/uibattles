@@ -26,6 +26,7 @@
 
 	let selectedModelIndex = $state(0);
 	let device = $state<DeviceType>('desktop');
+	let showPromptModal = $state(false);
 
 	let currentItem = $derived(items[selectedModelIndex] || null);
 
@@ -63,6 +64,8 @@
 		}).format(new Date(date));
 	}
 </script>
+
+<svelte:window onkeydown={(e) => e.key === 'Escape' && (showPromptModal = false)} />
 
 <svelte:head>
 	<title>{generation.name} - UI Battles</title>
@@ -234,7 +237,17 @@
 	<div class="border-b border-zinc-800 bg-zinc-900/30 px-4 py-3">
 		<p class="max-w-4xl text-sm text-zinc-400">
 			<span class="text-zinc-500">Prompt:</span>
-			{generation.prompt}
+			{#if generation.prompt.length > 200}
+				<span class="line-clamp-2">{generation.prompt.slice(0, 200)}</span>
+				<button
+					onclick={() => (showPromptModal = true)}
+					class="ml-1 text-emerald-400 hover:text-emerald-300"
+				>
+					Read more
+				</button>
+			{:else}
+				{generation.prompt}
+			{/if}
 		</p>
 	</div>
 
@@ -260,6 +273,46 @@
 						sandbox="allow-scripts"
 					></iframe>
 				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Prompt Modal -->
+	{#if showPromptModal}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+			onclick={(e) => {
+				if (e.target === e.currentTarget) showPromptModal = false;
+			}}
+			role="presentation"
+		>
+			<div
+				class="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-zinc-700 bg-zinc-900 p-6"
+				role="dialog"
+				aria-modal="true"
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<h2 class="text-lg font-semibold text-zinc-100">Prompt</h2>
+					<button
+						onclick={() => (showPromptModal = false)}
+						class="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+						aria-label="Close modal"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-5 w-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path d="M18 6L6 18M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+				<p class="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300">
+					{generation.prompt}
+				</p>
 			</div>
 		</div>
 	{/if}

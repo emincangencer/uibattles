@@ -12,7 +12,11 @@ export const generations = sqliteTable('generations', {
 		.references(() => user.id, { onDelete: 'cascade' }),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
 		.notNull()
-		.$defaultFn(() => new Date())
+		.$defaultFn(() => new Date()),
+	status: text('status').notNull().default('pending'),
+	startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+	completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+	abortRequested: integer('abort_requested', { mode: 'boolean' }).default(false)
 });
 
 export const generationItems = sqliteTable('generation_items', {
@@ -24,10 +28,14 @@ export const generationItems = sqliteTable('generation_items', {
 		.references(() => generations.id, { onDelete: 'cascade' }),
 	modelId: text('model_id').notNull(),
 	modelName: text('model_name').notNull(),
-	html: text('html').notNull(),
+	html: text('html'),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
 		.notNull()
-		.$defaultFn(() => new Date())
+		.$defaultFn(() => new Date()),
+	status: text('status').notNull().default('pending'),
+	error: text('error'),
+	startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+	completedAt: integer('completed_at', { mode: 'timestamp_ms' })
 });
 
 export * from './auth.schema';

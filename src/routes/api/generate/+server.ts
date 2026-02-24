@@ -1,33 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateText } from 'ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { db } from '$lib/server/db';
-import { generations, generationItems } from '$lib/server/db/schema';
+import { generationService } from '$lib/server/services/generation';
 import { z } from 'zod';
 
 const generateSchema = z.object({
-	prompt: z.string().min(1).max(2000),
+	prompt: z.string().min(1),
 	name: z.string().min(1).max(100),
-	models: z.array(z.string()).min(1).max(5),
+	models: z.array(z.string()).min(1).max(10),
 	apiKey: z.string().min(1)
 });
-
-const SYSTEM_PROMPT = `Generate a complete, single-file HTML document.
-You may use:
-- HTML5 elements, CSS3 (flexbox, grid, animations, transitions)
-- JavaScript (vanilla, no frameworks)
-- Google Fonts via @import or <link>
-- Inline SVG images (as data URIs or inline)
-
-You must NOT:
-- Use external CSS/JS libraries (no Tailwind CDN, React, Vue, etc.)
-- Reference external resources except Google Fonts
-- Make network requests
-- Use data: URLs except for inline SVGs
-- Generate incomplete or placeholder content
-
-Output ONLY the raw HTML code, no explanations or markdown.`;
 
 export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
 	try {
@@ -50,10 +31,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 
 		const { prompt, name, models, apiKey } = parsed.data;
 
-		// Rate limiting - simple in-memory implementation
 		const clientIP = getClientAddress();
 		const now = Date.now();
-		const windowMs = 60 * 1000; // 1 minute
+		const windowMs = 60 * 1000;
 		const maxRequests = 3;
 
 		if (!rateLimitStore.has(clientIP)) {
@@ -69,61 +49,15 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 
 		rateLimitStore.set(clientIP, [...recentRequests, now]);
 
-		// Create generation record
-		const generationId = crypto.randomUUID();
-
-		// Insert generation into DB
-		await db.insert(generations).values({
-			id: generationId,
-			name,
+		const generationId = await generationService.enqueue({
 			prompt,
+			name,
+			models,
+			apiKey,
 			userId: locals.user.id
 		});
 
-		const openrouter = createOpenRouter({ apiKey });
-
-		const results: { modelId: string; success: boolean; error?: string }[] = [];
-
-		// Generate sequentially for each model
-		for (const modelId of models) {
-			try {
-				const result = await generateText({
-					model: openrouter.chat(modelId),
-					messages: [
-						{ role: 'system', content: SYSTEM_PROMPT },
-						{ role: 'user', content: prompt }
-					]
-				});
-
-				let html = result.text;
-
-				// Clean up - remove markdown code blocks if present
-				html = html
-					.replace(/^```html\s*/, '')
-					.replace(/^```\s*$/, '')
-					.trim();
-
-				// Store generation item
-				await db.insert(generationItems).values({
-					id: crypto.randomUUID(),
-					generationId,
-					modelId,
-					modelName: modelId,
-					html
-				});
-
-				results.push({ modelId, success: true });
-			} catch (modelError) {
-				console.error(`Error generating with model ${modelId}:`, modelError);
-				results.push({
-					modelId,
-					success: false,
-					error: modelError instanceof Error ? modelError.message : 'Generation failed'
-				});
-			}
-		}
-
-		return json({ id: generationId, results });
+		return json({ id: generationId });
 	} catch (error) {
 		console.error('Generation error:', error);
 		return json(
@@ -133,10 +67,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 	}
 };
 
-// Simple in-memory rate limiting
 const rateLimitStore = new Map<string, number[]>();
 
-// Cleanup old entries periodically
 setInterval(
 	() => {
 		const now = Date.now();
@@ -152,4 +84,4 @@ setInterval(
 		}
 	},
 	5 * 60 * 1000
-); // Every 5 minutes
+);
