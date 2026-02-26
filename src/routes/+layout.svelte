@@ -34,6 +34,12 @@
 					Generate
 				</a>
 				{#if user}
+					<a
+						href={resolve('/account')}
+						class="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+					>
+						Account
+					</a>
 					<form method="POST" action={resolve('/signout')} use:enhance>
 						<button
 							type="submit"
