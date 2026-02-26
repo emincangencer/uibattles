@@ -1,8 +1,8 @@
 import { generateText, RetryError, APICallError } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { db } from '$lib/server/db';
-import { generations, generationItems } from '$lib/server/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { generations, generationItems, generationLikes } from '$lib/server/db/schema';
+import { eq, asc, desc, sql, and } from 'drizzle-orm';
 
 const MAX_CONCURRENT = 3;
 const MODEL_TIMEOUT_MS = 120_000;
@@ -44,6 +44,19 @@ export interface GenerationItemStatus {
 	startedAt: Date | null;
 	completedAt: Date | null;
 }
+
+export interface GenerationCardData {
+	id: string;
+	name: string;
+	createdAt: Date;
+	itemCount: number;
+	viewCount: number;
+	likesCount: number;
+	preview: { id: string; modelName: string; html: string } | null;
+	userLiked?: boolean;
+}
+
+export type SortOption = 'recent' | 'popular' | 'most_liked';
 
 export class GenerationService {
 	async enqueue(params: {
@@ -370,6 +383,270 @@ export class GenerationService {
 				startedAt: item.startedAt,
 				completedAt: item.completedAt
 			}))
+		};
+	}
+
+	async getPaginatedGenerations(params: {
+		cursor?: string;
+		limit: number;
+		search?: string;
+		sort: SortOption;
+		userId?: string;
+	}): Promise<{
+		generations: GenerationCardData[];
+		nextCursor: string | null;
+		hasMore: boolean;
+	}> {
+		const { cursor, limit, search, sort, userId } = params;
+
+		const conditions: ReturnType<typeof sql>[] = [];
+
+		// Check for completed items using subquery
+		const completedSubquery = db
+			.select({ generationId: generationItems.generationId })
+			.from(generationItems)
+			.where(sql`${generationItems.status} = 'completed'`)
+			.groupBy(generationItems.generationId)
+			.as('completed_gen');
+
+		conditions.push(sql`${generations.id} IN (SELECT generation_id FROM ${completedSubquery})`);
+
+		if (cursor) {
+			const [cursorGen] = await db
+				.select({
+					createdAt: generations.createdAt,
+					viewCount: generations.viewCount,
+					likesCount: generations.likesCount
+				})
+				.from(generations)
+				.where(eq(generations.id, cursor))
+				.limit(1);
+			if (cursorGen) {
+				switch (sort) {
+					case 'popular':
+						conditions.push(sql`${generations.viewCount} < ${cursorGen.viewCount ?? 0}`);
+						break;
+					case 'most_liked':
+						conditions.push(sql`${generations.likesCount} < ${cursorGen.likesCount ?? 0}`);
+						break;
+					default:
+						conditions.push(sql`${generations.createdAt} < ${cursorGen.createdAt}`);
+				}
+			}
+		}
+
+		if (search) {
+			const searchPattern = `%${search.toLowerCase()}%`;
+			conditions.push(sql`LOWER(${generations.name}) LIKE ${searchPattern}`);
+		}
+
+		const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+		const baseQuery = db
+			.select({
+				id: generations.id,
+				name: generations.name,
+				createdAt: generations.createdAt,
+				viewCount: generations.viewCount,
+				likesCount: generations.likesCount
+			})
+			.from(generations)
+			.where(whereClause);
+
+		let orderedQuery;
+		switch (sort) {
+			case 'popular':
+				orderedQuery = baseQuery.orderBy(desc(generations.viewCount));
+				break;
+			case 'most_liked':
+				orderedQuery = baseQuery.orderBy(desc(generations.likesCount));
+				break;
+			default:
+				orderedQuery = baseQuery.orderBy(desc(generations.createdAt));
+		}
+
+		const results = await orderedQuery.limit(limit + 1);
+
+		const hasMore = results.length > limit;
+		const items = hasMore ? results.slice(0, limit) : results;
+		const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+		if (items.length === 0) {
+			return {
+				generations: [],
+				nextCursor,
+				hasMore
+			};
+		}
+
+		// Optimize: Batch fetch all previews in one query
+		const generationIds = items.map((g) => g.id);
+
+		const allPreviews = await db
+			.select({
+				id: generationItems.id,
+				generationId: generationItems.generationId,
+				modelName: generationItems.modelName,
+				html: generationItems.html
+			})
+			.from(generationItems)
+			.where(
+				and(
+					sql`${generationItems.generationId} IN (${sql.join(
+						generationIds.map((id) => sql`${id}`),
+						sql`, `
+					)})`,
+					sql`${generationItems.status} = 'completed'`
+				)
+			);
+
+		// Get first preview for each generation
+		const previewMap = new Map<string, { id: string; modelName: string; html: string }>();
+		for (const preview of allPreviews) {
+			if (!previewMap.has(preview.generationId)) {
+				previewMap.set(preview.generationId, {
+					id: preview.id,
+					modelName: preview.modelName,
+					html: preview.html ?? ''
+				});
+			}
+		}
+
+		// Batch fetch item counts
+		const allCounts = await db
+			.select({
+				generationId: generationItems.generationId,
+				count: sql<number>`count(*)`
+			})
+			.from(generationItems)
+			.where(
+				sql`${generationItems.generationId} IN (${sql.join(
+					generationIds.map((id) => sql`${id}`),
+					sql`, `
+				)})`
+			)
+			.groupBy(generationItems.generationId);
+
+		const countMap = new Map<string, number>();
+		for (const row of allCounts) {
+			countMap.set(row.generationId, row.count);
+		}
+
+		// Batch fetch likes if user is logged in
+		let likeMap = new Map<string, boolean>();
+		if (userId) {
+			const userLikes = await db
+				.select({ generationId: generationLikes.generationId })
+				.from(generationLikes)
+				.where(
+					and(
+						sql`${generationLikes.generationId} IN (${sql.join(
+							generationIds.map((id) => sql`${id}`),
+							sql`, `
+						)})`,
+						eq(generationLikes.userId, userId)
+					)
+				);
+
+			likeMap = new Map(userLikes.map((like) => [like.generationId, true]));
+		}
+
+		// Combine all data
+		const generationsWithPreviews = items.map((gen) => ({
+			id: gen.id,
+			name: gen.name,
+			createdAt: gen.createdAt,
+			itemCount: countMap.get(gen.id) ?? 0,
+			viewCount: gen.viewCount ?? 0,
+			likesCount: gen.likesCount ?? 0,
+			preview: previewMap.get(gen.id) ?? null,
+			userLiked: likeMap.get(gen.id) ?? false
+		}));
+
+		return {
+			generations: generationsWithPreviews,
+			nextCursor,
+			hasMore
+		};
+	}
+
+	async incrementViewCount(generationId: string): Promise<number> {
+		await db
+			.update(generations)
+			.set({ viewCount: sql`view_count + 1` })
+			.where(eq(generations.id, generationId));
+
+		const [gen] = await db
+			.select({ viewCount: generations.viewCount })
+			.from(generations)
+			.where(eq(generations.id, generationId));
+
+		return gen?.viewCount ?? 0;
+	}
+
+	async toggleLike(
+		generationId: string,
+		userId: string
+	): Promise<{ liked: boolean; likesCount: number }> {
+		const [existingLike] = await db
+			.select({ id: generationLikes.id })
+			.from(generationLikes)
+			.where(
+				and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
+			)
+			.limit(1);
+
+		if (existingLike) {
+			await db.delete(generationLikes).where(eq(generationLikes.id, existingLike.id));
+
+			await db
+				.update(generations)
+				.set({ likesCount: sql`likes_count - 1` })
+				.where(eq(generations.id, generationId));
+		} else {
+			await db.insert(generationLikes).values({
+				id: crypto.randomUUID(),
+				generationId,
+				userId
+			});
+
+			await db
+				.update(generations)
+				.set({ likesCount: sql`likes_count + 1` })
+				.where(eq(generations.id, generationId));
+		}
+
+		const [gen] = await db
+			.select({ likesCount: generations.likesCount })
+			.from(generations)
+			.where(eq(generations.id, generationId));
+
+		return {
+			liked: !existingLike,
+			likesCount: gen?.likesCount ?? 0
+		};
+	}
+
+	async getLikeStatus(
+		generationId: string,
+		userId: string
+	): Promise<{ liked: boolean; likesCount: number }> {
+		const [existingLike] = await db
+			.select({ id: generationLikes.id })
+			.from(generationLikes)
+			.where(
+				and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
+			)
+			.limit(1);
+
+		const [gen] = await db
+			.select({ likesCount: generations.likesCount })
+			.from(generations)
+			.where(eq(generations.id, generationId));
+
+		return {
+			liked: !!existingLike,
+			likesCount: gen?.likesCount ?? 0
 		};
 	}
 }

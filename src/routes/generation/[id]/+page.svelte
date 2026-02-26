@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import { formatCount, formatDateTime } from '$lib/utils';
 
 	interface Creator {
 		id: string;
@@ -19,22 +21,75 @@
 
 	let { data } = $props();
 	let generation = $derived(
-		data.generation as { id: string; name: string; prompt: string; createdAt: Date }
+		data.generation as {
+			id: string;
+			name: string;
+			prompt: string;
+			createdAt: Date;
+			viewCount?: number;
+			likesCount?: number;
+		}
 	);
 	let creator = $derived(data.creator as Creator | null);
 	let items = $derived(data.items as GenerationItem[]);
+	let initialUserLiked = $derived((data as { userLiked?: boolean }).userLiked ?? false);
+	let userLoggedIn = $derived(!!data.user);
 
 	let selectedModelIndex = $state(0);
 	let device = $state<DeviceType>('desktop');
 	let showPromptModal = $state(false);
 
-	let currentItem = $derived(items[selectedModelIndex] || null);
+	let localLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
+
+	let isLiked = $derived(localLikeState !== null ? localLikeState.isLiked : initialUserLiked);
+	let likesCount = $derived(
+		localLikeState !== null ? localLikeState.likesCount : (generation.likesCount ?? 0)
+	);
+	let isLiking = $state(false);
 
 	const deviceWidths = {
 		desktop: 1440,
 		tablet: 768,
 		mobile: 375
 	} as const;
+
+	onMount(() => {
+		const viewedKey = `viewed_${generation.id}`;
+		const hasViewed = localStorage.getItem(viewedKey);
+		if (!hasViewed) {
+			fetch(`/api/generations/${generation.id}/view`, { method: 'POST' });
+			localStorage.setItem(viewedKey, 'true');
+		}
+	});
+
+	async function handleLike() {
+		if (!userLoggedIn || isLiking) return;
+		isLiking = true;
+		const previousState = localLikeState;
+
+		// Optimistic update
+		localLikeState = {
+			isLiked: !isLiked,
+			likesCount: likesCount + (isLiked ? -1 : 1)
+		};
+
+		try {
+			const res = await fetch(`/api/generations/${generation.id}/like`, { method: 'POST' });
+			const result = (await res.json()) as { success: boolean; liked: boolean; likesCount: number };
+			if (result.success) {
+				localLikeState = {
+					isLiked: result.liked,
+					likesCount: result.likesCount
+				};
+			} else {
+				localLikeState = previousState;
+			}
+		} catch {
+			localLikeState = previousState;
+		} finally {
+			isLiking = false;
+		}
+	}
 
 	function selectModel(index: number) {
 		selectedModelIndex = index;
@@ -54,15 +109,7 @@
 		}
 	}
 
-	function formatDate(date: Date): string {
-		return new Intl.DateTimeFormat('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		}).format(new Date(date));
-	}
+	let currentItem = $derived(items[selectedModelIndex] || null);
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (showPromptModal = false)} />
@@ -94,12 +141,40 @@
 				</a>
 				<div class="min-w-0">
 					<h1 class="truncate text-lg font-semibold text-zinc-100">{generation.name}</h1>
-					<p class="text-xs text-zinc-500">
+					<p class="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
 						{#if creator}
 							<span class="text-zinc-400">{creator.name || 'Anonymous'}</span>
-							<span class="mx-1">·</span>
 						{/if}
-						{formatDate(generation.createdAt)}
+						<span>{formatDateTime(generation.createdAt)}</span>
+						<span class="flex items-center gap-1">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-3 w-3"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+								<circle cx="12" cy="12" r="3" />
+							</svg>
+							{formatCount(generation.viewCount ?? 0)}
+						</span>
+						<span class="flex items-center gap-1">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-3 w-3"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path
+									d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+								/>
+							</svg>
+							{formatCount(likesCount)}
+						</span>
 					</p>
 				</div>
 			</div>
@@ -229,6 +304,29 @@
 						Copy HTML
 					</button>
 				{/if}
+
+				<!-- Like Button -->
+				<button
+					onclick={handleLike}
+					disabled={!userLoggedIn || isLiking}
+					class="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-700 disabled:opacity-50
+						{isLiked ? 'border-red-500/50 text-red-400' : 'text-zinc-300'}"
+					title={userLoggedIn ? (isLiked ? 'Unlike' : 'Like') : 'Sign in to like'}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-4 w-4"
+						viewBox="0 0 24 24"
+						fill={isLiked ? 'currentColor' : 'none'}
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path
+							d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+						/>
+					</svg>
+					{likesCount}
+				</button>
 			</div>
 		</div>
 	</header>

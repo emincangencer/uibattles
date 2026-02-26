@@ -1,28 +1,115 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import SearchInput from '$lib/components/SearchInput.svelte';
+	import SortDropdown from '$lib/components/SortDropdown.svelte';
+	import GenerationCard from '$lib/components/GenerationCard.svelte';
+	import InfiniteScroll from '$lib/components/InfiniteScroll.svelte';
+
+	interface Preview {
+		id: string;
+		modelName: string;
+		html: string;
+	}
 
 	interface Generation {
 		id: string;
 		name: string;
-		prompt: string;
 		createdAt: Date;
 		itemCount: number;
-		preview: {
-			id: string;
-			modelName: string;
-			html: string;
-		} | null;
+		viewCount: number;
+		likesCount: number;
+		preview: Preview | null;
+		userLiked?: boolean;
 	}
 
 	let { data } = $props();
-	let generations = $derived(data.generations as Generation[]);
 
-	function formatDate(date: Date): string {
-		return new Intl.DateTimeFormat('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		}).format(new Date(date));
+	// Use $derived.by to transform data, then use that to initialize state
+	// This pattern is intentional: start with server data, replace with client data
+	let generationsList = $state<Generation[]>([]);
+	let cursor = $state<string | null>(null);
+	let hasMore = $state(true);
+	let isLoading = $state(false);
+	let searchQuery = $state('');
+	let sortBy = $state<'recent' | 'popular' | 'most_liked'>('recent');
+	let userLoggedIn = $state(false);
+
+	// Initialize from server data on mount
+	$effect(() => {
+		const gens = (data.generations as Generation[]).map((g) => ({
+			...g,
+			viewCount: g.viewCount ?? 0,
+			likesCount: g.likesCount ?? 0
+		}));
+		if (generationsList.length === 0 && gens.length > 0) {
+			generationsList = gens;
+			cursor = (data as { initialCursor?: string }).initialCursor ?? null;
+			hasMore = (data as { initialHasMore?: boolean }).initialHasMore ?? true;
+			userLoggedIn = !!data.user;
+		}
+	});
+
+	async function loadMore() {
+		if (isLoading || !hasMore) return;
+		isLoading = true;
+
+		try {
+			const queryParts = [`limit=20`, `sort=${sortBy}`];
+			if (cursor) queryParts.push(`cursor=${encodeURIComponent(cursor)}`);
+			if (searchQuery) queryParts.push(`search=${encodeURIComponent(searchQuery)}`);
+
+			const res = await fetch(`/api/generations?${queryParts.join('&')}`);
+			const result = (await res.json()) as {
+				generations: Generation[];
+				nextCursor: string | null;
+				hasMore: boolean;
+			};
+
+			generationsList = [...generationsList, ...result.generations];
+			cursor = result.nextCursor;
+			hasMore = result.hasMore;
+		} catch (error) {
+			console.error('Error loading more generations:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function handleSearchChange(value: string) {
+		searchQuery = value;
+		await resetAndLoad();
+	}
+
+	async function handleSortChange(value: 'recent' | 'popular' | 'most_liked') {
+		sortBy = value;
+		await resetAndLoad();
+	}
+
+	async function resetAndLoad() {
+		isLoading = true;
+		generationsList = [];
+		cursor = null;
+		hasMore = true;
+
+		try {
+			const queryParts = [`limit=20`, `sort=${sortBy}`];
+			if (searchQuery) queryParts.push(`search=${encodeURIComponent(searchQuery)}`);
+
+			const res = await fetch(`/api/generations?${queryParts.join('&')}`);
+			const result = (await res.json()) as {
+				generations: Generation[];
+				nextCursor: string | null;
+				hasMore: boolean;
+			};
+
+			generationsList = result.generations;
+			cursor = result.nextCursor;
+			hasMore = result.hasMore;
+		} catch (error) {
+			console.error('Error resetting generations:', error);
+		} finally {
+			isLoading = false;
+		}
 	}
 </script>
 
@@ -61,7 +148,16 @@
 		</a>
 	</div>
 
-	{#if generations.length === 0}
+	<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<div class="w-full sm:w-80">
+			<SearchInput bind:value={searchQuery} onchange={handleSearchChange} />
+		</div>
+		<div class="flex items-center gap-4">
+			<SortDropdown bind:value={sortBy} onchange={handleSortChange} />
+		</div>
+	</div>
+
+	{#if generationsList.length === 0 && !isLoading}
 		<div class="py-20 text-center">
 			<div class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900">
 				<svg
@@ -76,48 +172,30 @@
 					<path d="M3 9h18M9 21V9" />
 				</svg>
 			</div>
-			<h2 class="mb-2 text-xl font-semibold text-zinc-300">No battles yet</h2>
-			<p class="mb-6 text-zinc-500">Create your first UI battle to get started</p>
+			<h2 class="mb-2 text-xl font-semibold text-zinc-300">
+				{searchQuery ? 'No results found' : 'No battles yet'}
+			</h2>
+			<p class="mb-6 text-zinc-500">
+				{searchQuery ? 'Try a different search term' : 'Create your first UI battle to get started'}
+			</p>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each generations as generation (generation.id)}
-				<a
-					href={resolve('/generation/[id]', { id: generation.id })}
-					class="group block overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition-all hover:border-zinc-700 hover:shadow-lg hover:shadow-emerald-500/5"
-				>
-					<div class="relative aspect-video overflow-hidden bg-zinc-950">
-						{#if generation.preview}
-							<iframe
-								srcdoc={generation.preview.html}
-								title={generation.name}
-								class="h-full w-full transform border-0 transition-transform duration-300 group-hover:scale-[1.02]"
-								sandbox="allow-scripts"
-							></iframe>
-							<div
-								class="absolute right-2 bottom-2 rounded bg-zinc-950/80 px-2 py-1 text-xs text-zinc-400 backdrop-blur-sm"
-							>
-								{generation.preview.modelName.split('/').pop()}
-							</div>
-						{:else}
-							<div class="flex h-full w-full items-center justify-center text-zinc-600">
-								No preview
-							</div>
-						{/if}
-					</div>
-					<div class="p-4">
-						<h3
-							class="truncate font-semibold text-zinc-100 transition-colors group-hover:text-emerald-400"
-						>
-							{generation.name}
-						</h3>
-						<div class="mt-2 flex items-center justify-between text-sm text-zinc-500">
-							<span>{generation.itemCount} model{generation.itemCount !== 1 ? 's' : ''}</span>
-							<span>{formatDate(generation.createdAt)}</span>
-						</div>
-					</div>
-				</a>
-			{/each}
-		</div>
+		<InfiniteScroll {hasMore} {isLoading} onloadmore={loadMore}>
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+				{#each generationsList as generation (generation.id)}
+					<GenerationCard
+						id={generation.id}
+						name={generation.name}
+						createdAt={generation.createdAt}
+						itemCount={generation.itemCount}
+						viewCount={generation.viewCount}
+						likesCount={generation.likesCount}
+						preview={generation.preview}
+						userLiked={generation.userLiked}
+						{userLoggedIn}
+					/>
+				{/each}
+			</div>
+		</InfiniteScroll>
 	{/if}
 </div>
