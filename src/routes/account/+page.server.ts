@@ -15,8 +15,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const PAGE_SIZE = 20;
 	const initialLimit = PAGE_SIZE;
 
-	let userGenerations: { id: string; name: string; status: string; createdAt: Date }[] = [];
-	let hasMore = false;
+	let userGenerations: { id: string; name: string; status: string; createdAt: Date }[];
+	let hasMore: boolean;
 
 	try {
 		const result = await db

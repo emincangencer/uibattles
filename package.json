@@ -3,6 +3,11 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"overrides": {
+		"minimatch": "^10.2.3",
+		"esbuild": "^0.25.0",
+		"cookie": "^0.7.0"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -21,34 +26,34 @@
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
-		"@eslint/js": "^9.39.2",
+		"@eslint/js": "^10.0.1",
 		"@libsql/client": "^0.17.0",
-		"@sveltejs/adapter-cloudflare": "^7.2.6",
-		"@sveltejs/kit": "^2.50.2",
+		"@sveltejs/adapter-cloudflare": "^7.2.8",
+		"@sveltejs/kit": "^2.53.3",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
-		"@tailwindcss/vite": "^4.1.18",
-		"@types/node": "^22",
-		"better-auth": "^1.4.18",
-		"drizzle-kit": "^0.31.8",
+		"@tailwindcss/vite": "^4.2.1",
+		"@types/node": "^25.3.2",
+		"better-auth": "^1.4.19",
+		"drizzle-kit": "^0.31.9",
 		"drizzle-orm": "^0.45.1",
-		"eslint": "^9.39.2",
+		"eslint": "^10.0.2",
 		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.14.0",
+		"eslint-plugin-svelte": "^3.15.0",
 		"globals": "^17.3.0",
 		"prettier": "^3.8.1",
-		"prettier-plugin-svelte": "^3.4.1",
+		"prettier-plugin-svelte": "^3.5.0",
 		"prettier-plugin-tailwindcss": "^0.7.2",
-		"svelte": "^5.51.0",
-		"svelte-check": "^4.3.6",
-		"tailwindcss": "^4.1.18",
+		"svelte": "^5.53.5",
+		"svelte-check": "^4.4.4",
+		"tailwindcss": "^4.2.1",
 		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.54.0",
+		"typescript-eslint": "^8.56.1",
 		"vite": "^7.3.1",
-		"wrangler": "^4.63.0"
+		"wrangler": "^4.69.0"
 	},
 	"dependencies": {
 		"@openrouter/ai-sdk-provider": "^2.2.3",
-		"ai": "^6.0.97",
+		"ai": "^6.0.103",
 		"zod": "^4.3.6"
 	}
 }
