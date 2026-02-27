@@ -38,6 +38,8 @@
 	let selectedModelIndex = $state(0);
 	let device = $state<DeviceType>('desktop');
 	let showPromptModal = $state(false);
+	let showCodeModal = $state(false);
+	let codeCopied = $state(false);
 
 	let localLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
 
@@ -103,9 +105,11 @@
 		selectedModelIndex = selectedModelIndex < items.length - 1 ? selectedModelIndex + 1 : 0;
 	}
 
-	function copyHtml() {
+	async function copyHtml() {
 		if (currentItem) {
-			navigator.clipboard.writeText(currentItem.html);
+			await navigator.clipboard.writeText(currentItem.html);
+			codeCopied = true;
+			setTimeout(() => (codeCopied = false), 2000);
 		}
 	}
 
@@ -118,7 +122,14 @@
 	} as const;
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (showPromptModal = false)} />
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') {
+			showPromptModal = false;
+			showCodeModal = false;
+		}
+	}}
+/>
 
 <svelte:head>
 	<title>{generation.name} - UI Battles</title>
@@ -309,13 +320,13 @@
 					</button>
 				</div>
 
-				<!-- Copy Button -->
+				<!-- Code Button -->
 				{#if currentItem}
 					<button
-						onclick={copyHtml}
+						onclick={() => (showCodeModal = true)}
 						class="rounded-lg bg-zinc-800 px-2 py-1 text-xs whitespace-nowrap text-zinc-300 transition-colors hover:bg-zinc-700 sm:px-3 sm:py-1.5 sm:text-sm"
 					>
-						Copy
+						Code
 					</button>
 				{/if}
 
@@ -427,6 +438,58 @@
 				<p class="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300">
 					{generation.prompt}
 				</p>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Code Modal -->
+	{#if showCodeModal && currentItem}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 py-8"
+			onclick={(e) => {
+				if (e.target === e.currentTarget) showCodeModal = false;
+			}}
+			role="presentation"
+		>
+			<div
+				class="w-full max-w-3xl rounded-xl border border-zinc-700 bg-zinc-900"
+				role="dialog"
+				aria-modal="true"
+			>
+				<div class="flex items-center justify-between border-b border-zinc-700 p-3 sm:p-4">
+					<h2 class="text-base font-semibold text-zinc-100 sm:text-lg">
+						{currentItem.modelName} - HTML
+					</h2>
+					<div class="flex items-center gap-2">
+						<button
+							onclick={copyHtml}
+							class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-600"
+						>
+							{codeCopied ? 'Copied!' : 'Copy'}
+						</button>
+						<button
+							onclick={() => (showCodeModal = false)}
+							class="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+							aria-label="Close modal"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-5 w-5"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M18 6L6 18M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+				</div>
+				<textarea
+					readonly
+					class="h-[80vh] w-full resize-none overflow-auto bg-zinc-950 p-3 font-mono text-xs text-zinc-300 focus:outline-none sm:p-4 sm:text-sm"
+					value={currentItem?.html ?? ''}
+				></textarea>
 			</div>
 		</div>
 	{/if}
