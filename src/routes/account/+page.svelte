@@ -1,21 +1,124 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import InfiniteScroll from '$lib/components/InfiniteScroll.svelte';
 	let { data, form } = $props();
+
+	const PAGE_SIZE = 20;
 
 	let deleteConfirmText = $state('');
 	let showDeleteModal = $state(false);
-	let activeTab = $state<'profile' | 'danger'>('profile');
+	let activeTab = $state<'profile' | 'generations' | 'danger'>('profile');
 	let profileSaving = $state(false);
 	let deleting = $state(false);
+	let confirmingDeleteId = $state<string | null>(null);
+	let deleteError = $state<string | null>(null);
+	let deletingId = $state<string | null>(null);
+
+	let generationsList = $state<typeof data.generations>([]);
+	let cursor = $state<string | null>(null);
+	let hasMore = $state(false);
+	let isLoading = $state(false);
+
+	$effect(() => {
+		generationsList = data.generations;
+		hasMore = data.generationsHasMore;
+		cursor = data.generationsHasMore
+			? (data.generations[data.generations.length - 1]?.id ?? null)
+			: null;
+	});
+
+	interface PaginatedGenerations {
+		generations: typeof data.generations;
+		nextCursor: string | null;
+		hasMore: boolean;
+	}
+
+	function isValidPaginatedGenerations(obj: unknown): obj is PaginatedGenerations {
+		if (!obj || typeof obj !== 'object') return false;
+		const o = obj as Record<string, unknown>;
+		return (
+			Array.isArray(o.generations) &&
+			typeof o.nextCursor === 'string' &&
+			typeof o.hasMore === 'boolean'
+		);
+	}
+
+	async function loadMore() {
+		if (isLoading || !hasMore) return;
+		isLoading = true;
+
+		try {
+			const queryParts = [`limit=${PAGE_SIZE}`];
+			if (cursor) queryParts.push(`cursor=${encodeURIComponent(cursor)}`);
+
+			const res = await fetch(`/api/account/generations?${queryParts.join('&')}`);
+			const json = await res.json();
+
+			if (!isValidPaginatedGenerations(json)) {
+				console.error('Invalid API response:', json);
+				return;
+			}
+
+			generationsList = [...generationsList, ...json.generations];
+			cursor = json.nextCursor;
+			hasMore = json.hasMore;
+		} catch (error) {
+			console.error('Error loading more generations:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	function formatDate(date: Date | string | undefined): string {
 		if (!date) return 'N/A';
 		const d = typeof date === 'string' ? new Date(date) : date;
 		return d.toLocaleDateString('en-US', {
 			year: 'numeric',
-			month: 'long',
+			month: 'short',
 			day: 'numeric'
 		});
+	}
+
+	function getStatusColor(status: string): string {
+		switch (status) {
+			case 'completed':
+				return 'bg-emerald-500/20 text-emerald-400';
+			case 'pending':
+				return 'bg-yellow-500/20 text-yellow-400';
+			case 'in_progress':
+				return 'bg-blue-500/20 text-blue-400';
+			case 'failed':
+				return 'bg-red-500/20 text-red-400';
+			default:
+				return 'bg-zinc-500/20 text-zinc-400';
+		}
+	}
+
+	async function deleteGeneration(id: string) {
+		deletingId = id;
+		const formData = new FormData();
+		formData.set('generationId', id);
+
+		const response = await fetch('?/deleteGeneration', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (response.ok) {
+			await invalidateAll();
+		} else {
+			try {
+				const result = (await response.json()) as { error?: string };
+				deleteError = result.error ?? 'Failed to delete';
+			} catch {
+				deleteError = 'Failed to delete';
+			}
+			setTimeout(() => (deleteError = null), 3000);
+		}
+		confirmingDeleteId = null;
+		deletingId = null;
 	}
 </script>
 
@@ -35,6 +138,15 @@
 				onclick={() => (activeTab = 'profile')}
 			>
 				Profile
+			</button>
+			<button
+				class="rounded-t-lg px-4 py-2 text-sm font-medium transition-colors {activeTab ===
+				'generations'
+					? 'border-b-2 border-emerald-500 text-emerald-400'
+					: 'text-zinc-400 hover:text-zinc-200'}"
+				onclick={() => (activeTab = 'generations')}
+			>
+				My Generations ({generationsList.length})
 			</button>
 			<button
 				class="rounded-t-lg px-4 py-2 text-sm font-medium transition-colors {activeTab === 'danger'
@@ -120,6 +232,75 @@
 						{profileSaving ? 'Saving...' : 'Save Changes'}
 					</button>
 				</form>
+			</div>
+		{/if}
+
+		{#if activeTab === 'generations'}
+			<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+				<h2 class="mb-4 text-xl font-semibold text-zinc-100">My Generations</h2>
+
+				{#if deleteError}
+					<p class="mb-4 text-sm text-red-400">{deleteError}</p>
+				{/if}
+
+				{#if generationsList.length === 0}
+					<p class="text-zinc-400">You haven't created any generations yet.</p>
+					<a
+						href={resolve('/generate')}
+						class="mt-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+					>
+						Create your first generation
+					</a>
+				{:else}
+					<InfiniteScroll {hasMore} {isLoading} onloadmore={loadMore}>
+						<ul class="space-y-2">
+							{#each generationsList as generation (generation.id)}
+								<li
+									class="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-3"
+								>
+									<a
+										href={resolve('/generation/[id]', { id: generation.id })}
+										class="flex-1 text-zinc-100 hover:text-emerald-400"
+									>
+										{generation.name}
+									</a>
+									<span class="mr-3 rounded px-2 py-1 text-xs {getStatusColor(generation.status)}">
+										{generation.status.replaceAll('_', ' ')}
+									</span>
+									<span class="mr-4 text-xs text-zinc-500">
+										{formatDate(generation.createdAt)}
+									</span>
+									{#if confirmingDeleteId === generation.id}
+										<button
+											type="button"
+											disabled={deletingId === generation.id}
+											onclick={() => deleteGeneration(generation.id)}
+											class="rounded px-2 py-1 text-xs text-red-400 transition hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
+										>
+											{deletingId === generation.id ? 'Deleting...' : 'Confirm'}
+										</button>
+										<button
+											type="button"
+											onclick={() => (confirmingDeleteId = null)}
+											class="rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-700"
+										>
+											Cancel
+										</button>
+									{:else}
+										<button
+											type="button"
+											disabled={deletingId !== null}
+											onclick={() => (confirmingDeleteId = generation.id)}
+											class="rounded px-2 py-1 text-xs text-red-400 transition hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
+										>
+											Delete
+										</button>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</InfiniteScroll>
+				{/if}
 			</div>
 		{/if}
 

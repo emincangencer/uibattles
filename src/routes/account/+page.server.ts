@@ -3,13 +3,40 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { user, account, session } from '$lib/server/db/auth.schema';
 import { generations } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
 		const loginUrl = new URL('/login', url.origin);
 		loginUrl.searchParams.set('redirect', url.pathname);
 		throw redirect(302, loginUrl.toString());
+	}
+
+	const PAGE_SIZE = 20;
+	const initialLimit = PAGE_SIZE;
+
+	let userGenerations: { id: string; name: string; status: string; createdAt: Date }[] = [];
+	let hasMore = false;
+
+	try {
+		const result = await db
+			.select({
+				id: generations.id,
+				name: generations.name,
+				status: generations.status,
+				createdAt: generations.createdAt
+			})
+			.from(generations)
+			.where(eq(generations.userId, locals.user.id))
+			.orderBy(desc(generations.createdAt))
+			.limit(initialLimit + 1);
+
+		hasMore = result.length > initialLimit;
+		userGenerations = hasMore ? result.slice(0, initialLimit) : result;
+	} catch (error) {
+		console.error('Failed to fetch generations:', error);
+		userGenerations = [];
+		hasMore = false;
 	}
 
 	return {
@@ -19,7 +46,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			email: locals.user.email,
 			image: locals.user.image,
 			createdAt: locals.user.createdAt
-		}
+		},
+		generations: userGenerations,
+		generationsHasMore: hasMore
 	};
 };
 
@@ -47,6 +76,30 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Failed to update profile:', error);
 			return fail(500, { error: 'Failed to update profile' });
+		}
+	},
+
+	deleteGeneration: async ({ request, locals }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const generationId = formData.get('generationId')?.toString() ?? '';
+
+		if (!generationId) {
+			return fail(400, { error: 'Generation ID required' });
+		}
+
+		try {
+			await db
+				.delete(generations)
+				.where(and(eq(generations.id, generationId), eq(generations.userId, locals.user.id)));
+
+			return { success: true, message: 'Generation deleted' };
+		} catch (error) {
+			console.error('Failed to delete generation:', error);
+			return fail(500, { error: 'Failed to delete generation' });
 		}
 	},
 
