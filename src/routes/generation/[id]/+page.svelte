@@ -110,6 +110,12 @@
 	}
 
 	let currentItem = $derived(items[selectedModelIndex] || null);
+
+	const iframeHeights = {
+		desktop: 'calc(100vh - 280px)',
+		tablet: 'calc(100vh - 280px)',
+		mobile: 'calc(100vh - 220px)'
+	} as const;
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (showPromptModal = false)} />
@@ -118,11 +124,13 @@
 	<title>{generation.name} - UI Battles</title>
 </svelte:head>
 
-<div class="mx-auto max-w-full">
+<div class="mx-auto max-w-full overflow-x-hidden">
 	<!-- Header -->
 	<header class="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
-		<div class="mx-auto flex h-16 max-w-full items-center justify-between gap-4 px-4">
-			<div class="flex min-w-0 items-center gap-4">
+		<div
+			class="mx-auto flex h-auto min-h-16 flex-wrap items-center justify-between gap-2 px-2 py-2 sm:flex-nowrap sm:gap-4 sm:px-4 sm:py-0"
+		>
+			<div class="flex min-w-0 items-center gap-2 sm:gap-4">
 				<a
 					href={resolve('/')}
 					class="text-zinc-400 transition-colors hover:text-zinc-200"
@@ -140,8 +148,10 @@
 					</svg>
 				</a>
 				<div class="min-w-0">
-					<h1 class="truncate text-lg font-semibold text-zinc-100">{generation.name}</h1>
-					<p class="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+					<h1 class="truncate text-base font-semibold text-zinc-100 sm:text-lg">
+						{generation.name}
+					</h1>
+					<p class="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-zinc-500 sm:gap-x-2">
 						{#if creator}
 							<span class="text-zinc-400">{creator.name || 'Anonymous'}</span>
 						{/if}
@@ -179,10 +189,12 @@
 				</div>
 			</div>
 
-			<div class="flex items-center gap-3">
+			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
 				<!-- Model Navigation -->
 				{#if items.length > 1}
-					<div class="flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-1.5">
+					<div
+						class="flex items-center gap-1 rounded-lg bg-zinc-800 px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5"
+					>
 						<button
 							onclick={prevModel}
 							class="rounded p-1 transition-colors hover:bg-zinc-700"
@@ -199,7 +211,7 @@
 								<path d="M15 18l-6-6 6-6" />
 							</svg>
 						</button>
-						<span class="min-w-[60px] text-center text-sm text-zinc-400">
+						<span class="min-w-[40px] text-center text-xs text-zinc-400 sm:min-w-[60px] sm:text-sm">
 							{items.length > 0 ? selectedModelIndex + 1 : 0} / {items.length}
 						</span>
 						<button
@@ -226,7 +238,7 @@
 					<select
 						value={selectedModelIndex}
 						onchange={(e) => selectModel(Number((e.target as HTMLSelectElement).value))}
-						class="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+						class="max-w-[120px] rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
 					>
 						{#each items as item, i (item.id)}
 							<option value={i}>{item.modelName}</option>
@@ -235,10 +247,12 @@
 				{/if}
 
 				<!-- Device Toggle -->
-				<div class="flex items-center gap-1 rounded-lg bg-zinc-800 px-1 py-1">
+				<div
+					class="flex items-center gap-0.5 rounded-lg bg-zinc-800 px-0.5 py-0.5 sm:gap-1 sm:px-1 sm:py-1"
+				>
 					<button
 						onclick={() => (device = 'desktop')}
-						class="rounded p-1.5 transition-colors {device === 'desktop'
+						class="rounded p-1 transition-colors {device === 'desktop'
 							? 'bg-zinc-700 text-zinc-100'
 							: 'text-zinc-400 hover:text-zinc-200'}"
 						aria-label="Desktop view"
@@ -257,7 +271,7 @@
 					</button>
 					<button
 						onclick={() => (device = 'tablet')}
-						class="rounded p-1.5 transition-colors {device === 'tablet'
+						class="rounded p-1 transition-colors {device === 'tablet'
 							? 'bg-zinc-700 text-zinc-100'
 							: 'text-zinc-400 hover:text-zinc-200'}"
 						aria-label="Tablet view"
@@ -276,7 +290,7 @@
 					</button>
 					<button
 						onclick={() => (device = 'mobile')}
-						class="rounded p-1.5 transition-colors {device === 'mobile'
+						class="rounded p-1 transition-colors {device === 'mobile'
 							? 'bg-zinc-700 text-zinc-100'
 							: 'text-zinc-400 hover:text-zinc-200'}"
 						aria-label="Mobile view"
@@ -299,9 +313,9 @@
 				{#if currentItem}
 					<button
 						onclick={copyHtml}
-						class="rounded-lg bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-700"
+						class="rounded-lg bg-zinc-800 px-2 py-1 text-xs whitespace-nowrap text-zinc-300 transition-colors hover:bg-zinc-700 sm:px-3 sm:py-1.5 sm:text-sm"
 					>
-						Copy HTML
+						Copy
 					</button>
 				{/if}
 
@@ -309,7 +323,7 @@
 				<button
 					onclick={handleLike}
 					disabled={!userLoggedIn || isLiking}
-					class="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-700 disabled:opacity-50
+					class="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs whitespace-nowrap transition-colors hover:bg-zinc-700 disabled:opacity-50 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm
 						{isLiked ? 'border-red-500/50 text-red-400' : 'text-zinc-300'}"
 					title={userLoggedIn ? (isLiked ? 'Unlike' : 'Like') : 'Sign in to like'}
 				>
@@ -325,21 +339,21 @@
 							d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
 						/>
 					</svg>
-					{likesCount}
+					<span class="hidden sm:inline">{likesCount}</span>
 				</button>
 			</div>
 		</div>
 	</header>
 
 	<!-- Prompt Display -->
-	<div class="border-b border-zinc-800 bg-zinc-900/30 px-4 py-3">
-		<p class="max-w-4xl text-sm text-zinc-400">
+	<div class="border-b border-zinc-800 bg-zinc-900/30 px-2 py-2 sm:px-4 sm:py-3">
+		<p class="max-w-4xl text-xs text-zinc-400 sm:text-sm">
 			<span class="text-zinc-500">Prompt:</span>
-			{#if generation.prompt.length > 200}
-				<span class="line-clamp-2">{generation.prompt.slice(0, 200)}</span>
+			{#if generation.prompt.length > 100}
+				<span class="line-clamp-2">{generation.prompt.slice(0, 100)}</span>
 				<button
 					onclick={() => (showPromptModal = true)}
-					class="ml-1 text-emerald-400 hover:text-emerald-300"
+					class="ml-1 whitespace-nowrap text-emerald-400 hover:text-emerald-300"
 				>
 					Read more
 				</button>
@@ -353,21 +367,23 @@
 	{#if !currentItem}
 		<div class="flex h-96 items-center justify-center text-zinc-500">No generation items found</div>
 	{:else}
-		<div class="p-4">
+		<div class="p-2 sm:p-4">
 			<!-- Single Preview based on device -->
 			<div class="mx-auto flex flex-col items-center">
 				<div
-					class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-zinc-700 bg-zinc-900 px-4 py-2"
+					class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-zinc-700 bg-zinc-900 px-2 py-1 sm:px-4 sm:py-2"
 				>
-					<span class="text-sm font-medium text-zinc-400 capitalize">{device}</span>
-					<span class="text-sm text-zinc-500">{deviceWidths[device]}px</span>
+					<span class="text-xs font-medium text-zinc-400 capitalize sm:text-sm">{device}</span>
+					<span class="text-xs text-zinc-500 sm:text-sm">{deviceWidths[device]}px</span>
 				</div>
 				<div class="w-full overflow-hidden rounded-b-lg border border-zinc-700 bg-white">
 					<iframe
 						srcdoc={currentItem.html}
 						title="{device} preview"
-						class="mx-auto"
-						style="width: {deviceWidths[device]}px; max-width: 100%; height: calc(100vh - 280px);"
+						class="mx-auto block"
+						style="width: {deviceWidths[device]}px; max-width: 100%; height: {iframeHeights[
+							device
+						]};"
 						sandbox="allow-scripts"
 					></iframe>
 				</div>
