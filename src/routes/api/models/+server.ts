@@ -48,10 +48,12 @@ export const GET: RequestHandler = async () => {
 		const chatModels = allModels.filter((model: unknown) => {
 			const m = model as {
 				architecture?: { modality?: string };
-				modalities?: { output?: string[] };
+				modalities?: { input?: string[]; output?: string[] };
 			};
+			const input = m.modalities?.input || [];
 			const output = m.modalities?.output || [];
-			// Only exclude if output is explicitly provided AND doesn't include text
+			// Only exclude if modalities are explicitly provided AND don't include text
+			if (input.length > 0 && !input.includes('text')) return false;
 			if (output.length > 0 && !output.includes('text')) return false;
 			// Include models that support text chat
 			const modality = m.architecture?.modality?.toLowerCase() || '';
