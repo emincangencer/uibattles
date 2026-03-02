@@ -43,13 +43,19 @@ export const GET: RequestHandler = async () => {
 	try {
 		const response = await fetchModels();
 
-		// Filter for chat models only (exclude embeddings, TTS, etc.)
+		// Filter for chat models only (exclude embeddings, TTS, image generation, etc.)
 		const allModels = (response as { data: unknown[] }).data;
 		const chatModels = allModels.filter((model: unknown) => {
-			const m = model as { architecture?: { modality?: string } };
+			const m = model as {
+				architecture?: { modality?: string };
+				modalities?: { output?: string[] };
+			};
+			const output = m.modalities?.output || [];
+			// Only exclude if output is explicitly provided AND doesn't include text
+			if (output.length > 0 && !output.includes('text')) return false;
 			// Include models that support text chat
 			const modality = m.architecture?.modality?.toLowerCase() || '';
-			return modality.includes('text') || modality === 'text->text' || !modality;
+			return modality.includes('text') || !modality;
 		});
 
 		return json({ data: chatModels });
