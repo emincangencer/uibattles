@@ -114,12 +114,6 @@
 	}
 
 	let currentItem = $derived(items[selectedModelIndex] || null);
-
-	const iframeHeights = {
-		desktop: 'calc(100vh - 280px)',
-		tablet: 'calc(100vh - 280px)',
-		mobile: 'calc(100vh - 220px)'
-	} as const;
 </script>
 
 <svelte:window
@@ -392,10 +386,11 @@
 						srcdoc={currentItem.html}
 						title="{device} preview"
 						class="mx-auto block"
-						style="width: {deviceWidths[device]}px; max-width: 100%; height: {iframeHeights[
+						style="width: {deviceWidths[
 							device
-						]};"
+						]}px; max-width: 100%; min-height: 500px; height: auto;"
 						sandbox="allow-scripts"
+						scrolling="yes"
 					></iframe>
 				</div>
 			</div>
