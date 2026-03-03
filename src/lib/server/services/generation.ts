@@ -200,6 +200,7 @@ export class GenerationService {
 			html = html
 				.replace(/^```html\s*/, '')
 				.replace(/^```\s*$/, '')
+				.replace(/```\s*$/, '')
 				.trim();
 
 			await db
