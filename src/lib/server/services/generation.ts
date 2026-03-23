@@ -589,43 +589,49 @@ export class GenerationService {
 		generationId: string,
 		userId: string
 	): Promise<{ liked: boolean; likesCount: number }> {
-		const [existingLike] = await db
-			.select({ id: generationLikes.id })
-			.from(generationLikes)
-			.where(
-				and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
-			)
-			.limit(1);
+		return db.transaction(async (tx) => {
+			const existingLikes = await tx
+				.select({ id: generationLikes.id })
+				.from(generationLikes)
+				.where(
+					and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
+				);
 
-		if (existingLike) {
-			await db.delete(generationLikes).where(eq(generationLikes.id, existingLike.id));
+			let liked: boolean;
 
-			await db
+			if (existingLikes.length > 0) {
+				await tx
+					.delete(generationLikes)
+					.where(
+						and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
+					);
+				liked = false;
+			} else {
+				await tx.insert(generationLikes).values({
+					id: crypto.randomUUID(),
+					generationId,
+					userId
+				});
+				liked = true;
+			}
+
+			const [likeCount] = await tx
+				.select({ count: sql<number>`count(*)` })
+				.from(generationLikes)
+				.where(eq(generationLikes.generationId, generationId));
+
+			const nextLikesCount = likeCount?.count ?? 0;
+
+			await tx
 				.update(generations)
-				.set({ likesCount: sql`likes_count - 1` })
+				.set({ likesCount: nextLikesCount })
 				.where(eq(generations.id, generationId));
-		} else {
-			await db.insert(generationLikes).values({
-				id: crypto.randomUUID(),
-				generationId,
-				userId
-			});
 
-			await db
-				.update(generations)
-				.set({ likesCount: sql`likes_count + 1` })
-				.where(eq(generations.id, generationId));
-		}
-
-		const [gen] = await db
-			.select({ likesCount: generations.likesCount })
-			.from(generations)
-			.where(eq(generations.id, generationId));
-
-		return {
-			liked: !existingLike,
-			likesCount: gen?.likesCount ?? 0
-		};
+			return {
+				liked,
+				likesCount: nextLikesCount
+			};
+		});
 	}
 
 	async getLikeStatus(

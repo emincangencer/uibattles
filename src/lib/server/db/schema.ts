@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
 import { relations } from 'drizzle-orm';
 
@@ -47,7 +47,10 @@ export const generationLikes = sqliteTable(
 			.notNull()
 			.$defaultFn(() => new Date())
 	},
-	(table) => [index('generation_likes_user_gen_idx').on(table.userId, table.generationId)]
+	(table) => [
+		index('generation_likes_user_gen_idx').on(table.userId, table.generationId),
+		uniqueIndex('generation_likes_user_gen_unique_idx').on(table.userId, table.generationId)
+	]
 );
 
 export const generationLikesRelations = relations(generationLikes, ({ one }) => ({

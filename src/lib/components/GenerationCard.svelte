@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { formatCount, formatDate } from '$lib/utils';
+	import { createSandboxedPreviewDocument, formatCount, formatDate } from '$lib/utils';
 
 	interface Preview {
 		id: string;
@@ -81,7 +81,7 @@
 	<div class="relative aspect-video overflow-hidden bg-zinc-950">
 		{#if preview}
 			<iframe
-				srcdoc={preview.html}
+				srcdoc={createSandboxedPreviewDocument(preview.html)}
 				title={name}
 				class="h-full w-full transform border-0 transition-transform duration-300 group-hover:scale-[1.02]"
 				sandbox="allow-scripts"

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { formatCount, formatDateTime } from '$lib/utils';
+	import { createSandboxedPreviewDocument, formatCount, formatDateTime } from '$lib/utils';
 
 	interface Creator {
 		id: string;
@@ -383,7 +383,7 @@
 				</div>
 				<div class="w-full overflow-hidden rounded-b-lg border border-zinc-700 bg-white">
 					<iframe
-						srcdoc={currentItem.html}
+						srcdoc={createSandboxedPreviewDocument(currentItem.html)}
 						title="{device} preview"
 						class="mx-auto block"
 						style="width: {deviceWidths[
