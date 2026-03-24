@@ -5,7 +5,7 @@ import { generations, generationItems, generationLikes } from '$lib/server/db/sc
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
 
 const MAX_CONCURRENT = 3;
-const MODEL_TIMEOUT_MS = 120_000;
+const MODEL_TIMEOUT_MS = 300_000;
 
 const SYSTEM_PROMPT = `Generate a complete, single-file HTML document.
 You may use:
@@ -212,7 +212,7 @@ export class GenerationService {
 
 			// Handle abort error from timeout
 			if (error instanceof Error && error.name === 'AbortError') {
-				errorMessage = 'Generation timed out (2 minute limit)';
+				errorMessage = 'Generation timed out (5 minute limit)';
 				await db
 					.update(generationItems)
 					.set({ status: 'error', error: errorMessage, completedAt: new Date() })
