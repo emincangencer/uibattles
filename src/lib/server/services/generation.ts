@@ -513,7 +513,7 @@ export class GenerationService {
 			}
 		}
 
-		// Batch fetch item counts
+		// Batch fetch item counts (only successful/completed models)
 		const allCounts = await db
 			.select({
 				generationId: generationItems.generationId,
@@ -521,10 +521,13 @@ export class GenerationService {
 			})
 			.from(generationItems)
 			.where(
-				sql`${generationItems.generationId} IN (${sql.join(
-					generationIds.map((id) => sql`${id}`),
-					sql`, `
-				)})`
+				and(
+					sql`${generationItems.generationId} IN (${sql.join(
+						generationIds.map((id) => sql`${id}`),
+						sql`, `
+					)})`,
+					sql`${generationItems.status} = 'completed'`
+				)
 			)
 			.groupBy(generationItems.generationId);
 
