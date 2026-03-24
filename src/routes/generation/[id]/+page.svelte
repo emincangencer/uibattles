@@ -18,6 +18,8 @@
 	}
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
+	const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
+	const PREVIEW_FALLBACK_HEIGHT = 500;
 
 	let { data } = $props();
 	let generation = $derived(
@@ -40,6 +42,7 @@
 	let showPromptModal = $state(false);
 	let showCodeModal = $state(false);
 	let codeCopied = $state(false);
+	let previewHeight = $state(PREVIEW_FALLBACK_HEIGHT);
 
 	let localLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
 
@@ -113,10 +116,28 @@
 		}
 	}
 
+	function handlePreviewMessage(event: MessageEvent) {
+		const data = event.data;
+		if (!data || typeof data !== 'object') return;
+		if (data.type !== PREVIEW_RESIZE_MESSAGE_TYPE) return;
+		if (!currentItem || data.previewId !== currentItem.id) return;
+		if (typeof data.height !== 'number' || !Number.isFinite(data.height)) return;
+
+		previewHeight = Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(data.height));
+	}
+
 	let currentItem = $derived(items[selectedModelIndex] || null);
+
+	$effect(() => {
+		const previewKey = currentItem ? `${currentItem.id}:${device}` : `empty:${device}`;
+		if (previewKey.length > 0) {
+			previewHeight = PREVIEW_FALLBACK_HEIGHT;
+		}
+	});
 </script>
 
 <svelte:window
+	onmessage={handlePreviewMessage}
 	onkeydown={(e) => {
 		if (e.key === 'Escape') {
 			showPromptModal = false;
@@ -383,12 +404,15 @@
 				</div>
 				<div class="w-full overflow-hidden rounded-b-lg border border-zinc-700 bg-white">
 					<iframe
-						srcdoc={createSandboxedPreviewDocument(currentItem.html)}
+						srcdoc={createSandboxedPreviewDocument(currentItem.html, {
+							resizeToContent: true,
+							previewId: currentItem.id
+						})}
 						title="{device} preview"
 						class="mx-auto block"
 						style="width: {deviceWidths[
 							device
-						]}px; max-width: 100%; min-height: 500px; height: auto;"
+						]}px; max-width: 100%; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px;"
 						sandbox="allow-scripts"
 						scrolling="yes"
 					></iframe>

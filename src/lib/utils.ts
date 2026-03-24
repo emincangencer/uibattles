@@ -40,6 +40,12 @@ const PREVIEW_CSP = [
 ].join('; ');
 
 const CSP_META_TAG = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`;
+const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
+
+interface PreviewDocumentOptions {
+	resizeToContent?: boolean;
+	previewId?: string;
+}
 
 export function sanitizeRedirectPath(value: string | null | undefined, fallback = '/'): string {
 	if (!value || !value.startsWith('/') || value.startsWith('//')) {
@@ -54,16 +60,79 @@ export function sanitizeRedirectPath(value: string | null | undefined, fallback 
 	}
 }
 
-export function createSandboxedPreviewDocument(html: string): string {
+function createPreviewResizeScript(previewId: string): string {
+	const payload = JSON.stringify({
+		type: PREVIEW_RESIZE_MESSAGE_TYPE,
+		previewId
+	});
+
+	return `<script>
+(() => {
+	const payload = ${payload};
+
+	function getHeight() {
+		const body = document.body;
+		const documentElement = document.documentElement;
+
+		return Math.max(
+			body ? body.scrollHeight : 0,
+			body ? body.offsetHeight : 0,
+			body ? body.clientHeight : 0,
+			documentElement.scrollHeight,
+			documentElement.offsetHeight,
+			documentElement.clientHeight
+		);
+	}
+
+	function postHeight() {
+		window.parent.postMessage({ ...payload, height: getHeight() }, '*');
+	}
+
+	function schedulePost() {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(postHeight);
+		});
+	}
+
+	window.addEventListener('load', schedulePost);
+	window.addEventListener('resize', schedulePost);
+
+	if (document.fonts && typeof document.fonts.ready?.then === 'function') {
+		document.fonts.ready.then(schedulePost).catch(() => {});
+	}
+
+	if (typeof ResizeObserver === 'function') {
+		const observer = new ResizeObserver(schedulePost);
+		observer.observe(document.documentElement);
+		if (document.body) {
+			observer.observe(document.body);
+		}
+	}
+
+	schedulePost();
+	setTimeout(postHeight, 150);
+})();
+</script>`;
+}
+
+export function createSandboxedPreviewDocument(
+	html: string,
+	options: PreviewDocumentOptions = {}
+): string {
 	const trimmed = html.trim();
+	const resizeScript =
+		options.resizeToContent && options.previewId
+			? createPreviewResizeScript(options.previewId)
+			: '';
+	const headInjection = `${CSP_META_TAG}${resizeScript}`;
 
 	if (/<head(\s|>)/i.test(trimmed)) {
-		return trimmed.replace(/<head(\s*[^>]*)>/i, `<head$1>${CSP_META_TAG}`);
+		return trimmed.replace(/<head(\s*[^>]*)>/i, `<head$1>${headInjection}`);
 	}
 
 	if (/<html(\s|>)/i.test(trimmed)) {
-		return trimmed.replace(/<html(\s*[^>]*)>/i, `<html$1><head>${CSP_META_TAG}</head>`);
+		return trimmed.replace(/<html(\s*[^>]*)>/i, `<html$1><head>${headInjection}</head>`);
 	}
 
-	return `<!doctype html><html><head>${CSP_META_TAG}</head><body>${trimmed}</body></html>`;
+	return `<!doctype html><html><head>${headInjection}</head><body>${trimmed}</body></html>`;
 }
