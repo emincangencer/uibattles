@@ -3,9 +3,33 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { db } from '$lib/server/db';
 import { generations, generationItems, generationLikes } from '$lib/server/db/schema';
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
+import { parse } from 'parse5';
 
 const MAX_CONCURRENT = 3;
 const MODEL_TIMEOUT_MS = 300_000;
+
+function isValidHtml(html: string): boolean {
+	const trimmed = html.trim();
+	if (!trimmed) return false;
+
+	try {
+		const doc = parse(trimmed) as {
+			childNodes: Array<{
+				nodeName: string;
+				childNodes?: Array<{ nodeName: string; childNodes?: Array<unknown> }>;
+			}>;
+		};
+		const htmlNode = doc.childNodes.find((n) => n.nodeName === 'html');
+		if (!htmlNode?.childNodes) return false;
+
+		const bodyNode = htmlNode.childNodes.find((n) => n.nodeName === 'body');
+		if (!bodyNode?.childNodes || bodyNode.childNodes.length === 0) return false;
+
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 const SYSTEM_PROMPT = `Generate a complete, single-file HTML document.
 You may use:
@@ -202,6 +226,14 @@ export class GenerationService {
 				.replace(/^```\s*$/, '')
 				.replace(/```\s*$/, '')
 				.trim();
+
+			if (!isValidHtml(html)) {
+				await db
+					.update(generationItems)
+					.set({ status: 'error', error: 'Malformed HTML output', completedAt: new Date() })
+					.where(eq(generationItems.id, item.id));
+				return;
+			}
 
 			await db
 				.update(generationItems)
