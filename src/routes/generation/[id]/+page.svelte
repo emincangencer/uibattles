@@ -351,7 +351,7 @@
 					<span class="text-xs font-medium text-zinc-400 capitalize sm:text-sm">{device}</span>
 					<span class="text-xs text-zinc-500 sm:text-sm">{deviceWidths[device]}px</span>
 				</div>
-				<div class="w-full overflow-hidden rounded-b-lg border border-zinc-700 bg-white">
+				<div class="w-full overflow-hidden rounded-b-lg border border-zinc-700">
 					<iframe
 						srcdoc={createSandboxedPreviewDocument(currentItem.html, {
 							resizeToContent: true,
