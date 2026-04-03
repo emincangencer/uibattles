@@ -121,7 +121,7 @@
 	/>
 </svelte:head>
 
-<div class="mx-auto max-w-7xl px-4 py-12">
+<div class="px-4 py-12">
 	<div class="mb-12 text-center">
 		<h1 class="mb-4 text-5xl font-bold tracking-tight">
 			UI <span class="text-emerald-400">Battles</span>

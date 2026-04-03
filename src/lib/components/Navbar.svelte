@@ -27,7 +27,7 @@
 <svelte:window onclick={handleClickOutside} />
 
 <header class="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
-	<div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
+	<div class="mx-auto flex h-16 items-center justify-between px-4 md:px-6">
 		<a
 			href={resolve('/')}
 			class="text-xl font-bold tracking-tight transition-colors hover:text-zinc-300"
