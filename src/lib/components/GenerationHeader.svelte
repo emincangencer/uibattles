@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { formatCount, formatDateTime } from '$lib/utils';
+	import { onMount } from 'svelte';
 
 	interface Creator {
 		id: string;
@@ -61,6 +62,32 @@
 	function selectModel(index: number) {
 		selectedModelIndex = index;
 	}
+
+	let screenWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+	onMount(() => {
+		const updateWidth = () => {
+			screenWidth = window.innerWidth;
+		};
+		window.addEventListener('resize', updateWidth);
+		updateWidth();
+		return () => window.removeEventListener('resize', updateWidth);
+	});
+
+	const screenType = $derived.by(() => {
+		if (screenWidth >= 1024) return 'desktop';
+		if (screenWidth >= 768) return 'tablet';
+		return 'mobile';
+	});
+
+	let lastScreenType = $state<string | null>(null);
+
+	$effect(() => {
+		if (screenType !== lastScreenType) {
+			device = screenType;
+			lastScreenType = screenType;
+		}
+	});
 </script>
 
 <header class="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
@@ -187,44 +214,50 @@
 			<div
 				class="flex items-center gap-0.5 rounded-lg bg-zinc-800 px-0.5 py-0.5 sm:gap-1 sm:px-1 sm:py-1"
 			>
-				<button
-					onclick={() => (device = 'desktop')}
-					class="rounded p-1 transition-colors {device === 'desktop'
-						? 'bg-zinc-700 text-zinc-100'
-						: 'text-zinc-400 hover:text-zinc-200'}"
-					aria-label="Desktop view"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-4 w-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
+				{#if screenType === 'desktop'}
+					<button
+						onclick={() => (device = 'desktop')}
+						class="rounded p-1 transition-colors {device === 'desktop'
+							? 'bg-zinc-700 text-zinc-100'
+							: 'text-zinc-400 hover:text-zinc-200'}"
+						aria-label="Desktop view"
 					>
-						<rect x="2" y="3" width="20" height="14" rx="2" />
-						<path d="M8 21h8M12 17v4" />
-					</svg>
-				</button>
-				<button
-					onclick={() => (device = 'tablet')}
-					class="rounded p-1 transition-colors {device === 'tablet'
-						? 'bg-zinc-700 text-zinc-100'
-						: 'text-zinc-400 hover:text-zinc-200'}"
-					aria-label="Tablet view"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-4 w-4"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-4 w-4"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<rect x="2" y="3" width="20" height="14" rx="2" />
+							<path d="M8 21h8M12 17v4" />
+						</svg>
+					</button>
+				{/if}
+
+				{#if screenType === 'desktop' || screenType === 'tablet'}
+					<button
+						onclick={() => (device = 'tablet')}
+						class="rounded p-1 transition-colors {device === 'tablet'
+							? 'bg-zinc-700 text-zinc-100'
+							: 'text-zinc-400 hover:text-zinc-200'}"
+						aria-label="Tablet view"
 					>
-						<rect x="4" y="2" width="16" height="20" rx="2" />
-						<path d="M12 18h.01" />
-					</svg>
-				</button>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-4 w-4"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<rect x="4" y="2" width="16" height="20" rx="2" />
+							<path d="M12 18h.01" />
+						</svg>
+					</button>
+				{/if}
+
 				<button
 					onclick={() => (device = 'mobile')}
 					class="rounded p-1 transition-colors {device === 'mobile'
