@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { createSandboxedPreviewDocument, formatCount, formatDateTime } from '$lib/utils';
+	import ModelSelector from '$lib/components/ModelSelector.svelte';
+	import ApiKeyInput from '$lib/components/ApiKeyInput.svelte';
 
 	interface Creator {
 		id: string;
@@ -15,6 +17,12 @@
 		modelName: string;
 		html: string;
 		createdAt: Date;
+		status?: string;
+	}
+
+	interface Model {
+		id: string;
+		name: string;
 	}
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
@@ -41,6 +49,7 @@
 	let device = $state<DeviceType>('desktop');
 	let showPromptModal = $state(false);
 	let showCodeModal = $state(false);
+	let showAddModelModal = $state(false);
 	let codeCopied = $state(false);
 	let previewHeight = $state(PREVIEW_FALLBACK_HEIGHT);
 
@@ -51,6 +60,51 @@
 		localLikeState !== null ? localLikeState.likesCount : (generation.likesCount ?? 0)
 	);
 	let isLiking = $state(false);
+
+	let selectedModels = $state<string[]>([]);
+	let apiKey = $state('');
+	let rememberMe = $state(false);
+	let isAddingModels = $state(false);
+	let addModelError = $state('');
+	let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+	function loadApiKey() {
+		if (typeof window !== 'undefined') {
+			const stored = localStorage.getItem('openrouter_api_key');
+			if (stored) {
+				apiKey = stored;
+				rememberMe = true;
+			}
+		}
+	}
+
+	loadApiKey();
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			if (rememberMe && apiKey) {
+				localStorage.setItem('openrouter_api_key', apiKey);
+			} else if (!rememberMe) {
+				localStorage.removeItem('openrouter_api_key');
+			}
+		}
+	});
+
+	let models = $derived(data.models as Model[]);
+
+	let polledItems = $derived.by(() => {
+		if (polledItemData.length > 0) {
+			return polledItemData;
+		}
+		return items;
+	});
+	let polledItemData = $state<GenerationItem[]>([]);
+	let completedModelIds = $derived(
+		polledItems.filter((item) => item.status === 'completed').map((item) => item.modelId)
+	);
+	let failedModelIds = $derived(
+		(data as { failedItems?: GenerationItem[] }).failedItems?.map((item) => item.modelId) ?? []
+	);
 
 	const deviceWidths = {
 		desktop: 1440,
@@ -101,11 +155,11 @@
 	}
 
 	function prevModel() {
-		selectedModelIndex = selectedModelIndex > 0 ? selectedModelIndex - 1 : items.length - 1;
+		selectedModelIndex = selectedModelIndex > 0 ? selectedModelIndex - 1 : polledItems.length - 1;
 	}
 
 	function nextModel() {
-		selectedModelIndex = selectedModelIndex < items.length - 1 ? selectedModelIndex + 1 : 0;
+		selectedModelIndex = selectedModelIndex < polledItems.length - 1 ? selectedModelIndex + 1 : 0;
 	}
 
 	async function copyHtml() {
@@ -126,7 +180,119 @@
 		previewHeight = Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(data.height));
 	}
 
-	let currentItem = $derived(items[selectedModelIndex] || null);
+	let currentItem = $derived(polledItems[selectedModelIndex] || null);
+
+	function toggleModel(modelId: string) {
+		if (selectedModels.includes(modelId)) {
+			selectedModels = selectedModels.filter((m) => m !== modelId);
+		} else {
+			selectedModels = [...selectedModels, modelId];
+		}
+	}
+
+	async function handleAddModels() {
+		if (selectedModels.length === 0) {
+			addModelError = 'Please select at least one model';
+			return;
+		}
+		if (!apiKey.trim()) {
+			addModelError = 'Please enter your OpenRouter API key';
+			return;
+		}
+
+		addModelError = '';
+		isAddingModels = true;
+
+		try {
+			const response = await fetch(`/api/generation/${generation.id}/add-models`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					models: selectedModels,
+					apiKey
+				})
+			});
+
+			const result: {
+				success?: boolean;
+				error?: string;
+				addedCount?: number;
+				retryCount?: number;
+			} = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to add models');
+			}
+
+			const totalAdded = (result.addedCount ?? 0) + (result.retryCount ?? 0);
+			showAddModelModal = false;
+			selectedModels = [];
+
+			if (totalAdded > 0) {
+				pollNewItems();
+			}
+		} catch (e) {
+			addModelError = e instanceof Error ? e.message : 'Failed to add models';
+		} finally {
+			isAddingModels = false;
+		}
+	}
+
+	function pollNewItems() {
+		pollInterval = setInterval(async () => {
+			try {
+				const response = await fetch(`/api/generation/${generation.id}/status`);
+				if (!response.ok) {
+					clearPollInterval();
+					return;
+				}
+
+				const status: {
+					items: Array<{
+						id: string;
+						modelId: string;
+						modelName: string;
+						status: string;
+						html?: string;
+						error?: string | null;
+					}>;
+				} = await response.json();
+
+				polledItemData = status.items.map((item) => ({
+					id: item.id,
+					modelId: item.modelId,
+					modelName: item.modelName,
+					html: item.html || '',
+					createdAt: new Date(),
+					status: item.status
+				}));
+
+				if (polledItems.length > selectedModelIndex) {
+					const currentStatus = polledItems[selectedModelIndex].status;
+					if (
+						currentStatus === 'completed' ||
+						currentStatus === 'error' ||
+						currentStatus === 'aborted'
+					) {
+						clearPollInterval();
+					}
+				}
+			} catch {
+				clearPollInterval();
+			}
+		}, 3000);
+	}
+
+	function clearPollInterval() {
+		if (pollInterval) {
+			clearInterval(pollInterval);
+			pollInterval = null;
+		}
+	}
+
+	onDestroy(() => {
+		clearPollInterval();
+	});
 
 	$effect(() => {
 		const previewKey = currentItem ? `${currentItem.id}:${device}` : `empty:${device}`;
@@ -217,7 +383,7 @@
 
 			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
 				<!-- Model Navigation -->
-				{#if items.length > 1}
+				{#if polledItems.length > 1}
 					<div
 						class="flex items-center gap-1 rounded-lg bg-zinc-800 px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5"
 					>
@@ -238,7 +404,7 @@
 							</svg>
 						</button>
 						<span class="min-w-[40px] text-center text-xs text-zinc-400 sm:min-w-[60px] sm:text-sm">
-							{items.length > 0 ? selectedModelIndex + 1 : 0} / {items.length}
+							{polledItems.length > 0 ? selectedModelIndex + 1 : 0} / {polledItems.length}
 						</span>
 						<button
 							onclick={nextModel}
@@ -260,13 +426,13 @@
 				{/if}
 
 				<!-- Model Selector -->
-				{#if items.length > 0}
+				{#if polledItems.length > 0}
 					<select
 						value={selectedModelIndex}
 						onchange={(e) => selectModel(Number((e.target as HTMLSelectElement).value))}
 						class="max-w-[120px] rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
 					>
-						{#each items as item, i (item.id)}
+						{#each polledItems as item, i (item.id)}
 							<option value={i}>{item.modelName}</option>
 						{/each}
 					</select>
@@ -366,6 +532,24 @@
 						/>
 					</svg>
 					<span class="hidden sm:inline">{likesCount}</span>
+				</button>
+
+				<!-- Add Model Button -->
+				<button
+					onclick={() => (showAddModelModal = true)}
+					class="flex items-center gap-1 rounded-lg bg-emerald-500 px-2 py-1 text-xs font-medium whitespace-nowrap text-zinc-950 transition-colors hover:bg-emerald-600 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-4 w-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path d="M12 5v14M5 12h14" />
+					</svg>
+					<span>Add Model</span>
 				</button>
 			</div>
 		</div>
@@ -509,6 +693,86 @@
 					class="h-[80vh] w-full resize-none overflow-auto bg-zinc-950 p-3 font-mono text-xs text-zinc-300 focus:outline-none sm:p-4 sm:text-sm"
 					value={currentItem?.html ?? ''}
 				></textarea>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Add Model Modal -->
+	{#if showAddModelModal}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 py-8"
+			onclick={(e) => {
+				if (e.target === e.currentTarget) showAddModelModal = false;
+			}}
+			role="presentation"
+		>
+			<div
+				class="w-full max-w-2xl rounded-xl border border-zinc-700 bg-zinc-900"
+				role="dialog"
+				aria-modal="true"
+			>
+				<div class="flex items-center justify-between border-b border-zinc-700 p-3 sm:p-4">
+					<h2 class="text-base font-semibold text-zinc-100 sm:text-lg">Add Models</h2>
+					<button
+						onclick={() => (showAddModelModal = false)}
+						class="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+						aria-label="Close modal"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-5 w-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path d="M18 6L6 18M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+
+				<div class="p-3 sm:p-4">
+					<ApiKeyInput
+						{apiKey}
+						{rememberMe}
+						disabled={isAddingModels}
+						idPrefix="add"
+						onUpdateApiKey={(key) => (apiKey = key)}
+						onUpdateRememberMe={(val) => (rememberMe = val)}
+					/>
+
+					<div class="mt-4">
+						<ModelSelector
+							{models}
+							{selectedModels}
+							excludedModels={completedModelIds}
+							retryableModels={failedModelIds}
+							disabled={isAddingModels}
+							maxHeight="max-h-48"
+							onToggle={toggleModel}
+						/>
+					</div>
+
+					{#if addModelError}
+						<div
+							class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+						>
+							{addModelError}
+						</div>
+					{/if}
+
+					<button
+						onclick={handleAddModels}
+						disabled={isAddingModels || selectedModels.length === 0}
+						class="mt-4 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-700"
+					>
+						{#if isAddingModels}
+							Adding models...
+						{:else}
+							Add {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
+						{/if}
+					</button>
+				</div>
 			</div>
 		</div>
 	{/if}

@@ -4,7 +4,16 @@ import { generations, generationItems, user, generationLikes } from '$lib/server
 import { eq, asc, and } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch }) => {
+	let models: unknown[];
+	try {
+		const response = await globalFetch('/api/models');
+		const result: { data?: unknown[] } = await response.json();
+		models = result.data ?? [];
+	} catch {
+		models = [];
+	}
+
 	const generation = await db
 		.select({
 			id: generations.id,
@@ -49,7 +58,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.where(eq(generationItems.generationId, params.id))
 		.orderBy(asc(generationItems.createdAt));
 
-	const completedItems = items.filter((item) => item.status === 'completed' && item.html);
+	const allItems = items.filter((item) => item.status === 'completed' && item.html);
+	const failedItems = items.filter((item) => item.status === 'error' || item.status === 'aborted');
 
 	let userLiked = false;
 	if (locals.user) {
@@ -70,7 +80,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			likesCount: gen.likesCount ?? 0
 		},
 		creator: creator[0] || null,
-		items: completedItems,
-		userLiked
+		items: allItems,
+		failedItems,
+		userLiked,
+		models
 	};
 };

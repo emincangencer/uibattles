@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import ModelSelector from '$lib/components/ModelSelector.svelte';
+	import ApiKeyInput from '$lib/components/ApiKeyInput.svelte';
 
 	interface Model {
 		id: string;
@@ -38,16 +40,6 @@
 
 	let { data } = $props();
 	let models = $derived(data.models as Model[]);
-	let modelSearch = $state('');
-	let filteredModels = $derived(
-		modelSearch.trim()
-			? models.filter(
-					(m) =>
-						m.name.toLowerCase().includes(modelSearch.toLowerCase()) ||
-						m.id.toLowerCase().includes(modelSearch.toLowerCase())
-				)
-			: models
-	);
 
 	let prompt = $state('');
 	let name = $state('');
@@ -351,76 +343,16 @@
 		</div>
 
 		<!-- Model Selection -->
-		<div>
-			<span class="mb-2 block text-sm font-medium text-zinc-300">
-				Models ({selectedModels.length} selected)
-			</span>
-			<div class="mb-2">
-				<input
-					type="text"
-					bind:value={modelSearch}
-					placeholder="Search models..."
-					class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-transparent focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-				/>
-			</div>
-			<div
-				class="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2"
-			>
-				{#each filteredModels as model (model.id)}
-					<button
-						type="button"
-						onclick={() => toggleModel(model.id)}
-						disabled={isGenerating}
-						class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-50 {selectedModels.includes(
-							model.id
-						)
-							? 'bg-emerald-500/20 text-emerald-400'
-							: 'text-zinc-300 hover:bg-zinc-800'}"
-					>
-						<input
-							type="checkbox"
-							checked={selectedModels.includes(model.id)}
-							class="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-						/>
-						<span class="text-sm">{model.name}</span>
-					</button>
-				{/each}
-			</div>
-		</div>
+		<ModelSelector {models} {selectedModels} disabled={isGenerating} onToggle={toggleModel} />
 
 		<!-- API Key Input -->
-		<div>
-			<label for="apiKey" class="mb-2 block text-sm font-medium text-zinc-300">
-				OpenRouter API Key
-			</label>
-			<input
-				type="password"
-				id="apiKey"
-				bind:value={apiKey}
-				placeholder="sk-or-v1-..."
-				disabled={isGenerating}
-				class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-transparent focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50"
-			/>
-			<div class="mt-2 flex items-center gap-2">
-				<input
-					type="checkbox"
-					id="rememberMe"
-					bind:checked={rememberMe}
-					disabled={isGenerating}
-					class="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-				/>
-				<label
-					for="rememberMe"
-					class="cursor-help text-xs text-zinc-400"
-					title="Saves your API key in this browser. Uncheck to remove."
-				>
-					Remember this device
-				</label>
-			</div>
-			<p class="mt-2 text-xs text-zinc-500">
-				Your API key is sent directly to OpenRouter and never stored on our servers.
-			</p>
-		</div>
+		<ApiKeyInput
+			{apiKey}
+			{rememberMe}
+			disabled={isGenerating}
+			onUpdateApiKey={(key) => (apiKey = key)}
+			onUpdateRememberMe={(val) => (rememberMe = val)}
+		/>
 
 		<!-- Error Message -->
 		{#if error}

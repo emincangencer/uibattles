@@ -316,6 +316,93 @@ export class GenerationService {
 			.where(eq(generations.id, generationId));
 	}
 
+	async addModels(
+		generationId: string,
+		models: string[],
+		apiKey: string
+	): Promise<{ success: boolean; addedCount: number; retryCount: number; error?: string }> {
+		const [generation] = await db
+			.select()
+			.from(generations)
+			.where(eq(generations.id, generationId));
+
+		if (!generation) {
+			return { success: false, addedCount: 0, retryCount: 0, error: 'Generation not found' };
+		}
+
+		const existingItems = await db
+			.select()
+			.from(generationItems)
+			.where(eq(generationItems.generationId, generationId));
+
+		const existingItemsByModel = new Map(existingItems.map((item) => [item.modelId, item]));
+		const completedModelIds = new Set(
+			existingItems.filter((item) => item.status === 'completed').map((item) => item.modelId)
+		);
+
+		const failedModelIds = new Set(
+			existingItems
+				.filter((item) => item.status === 'error' || item.status === 'aborted')
+				.map((item) => item.modelId)
+		);
+
+		const modelsToAdd: string[] = [];
+		const modelsToRetry: string[] = [];
+
+		for (const modelId of models) {
+			if (completedModelIds.has(modelId)) {
+				continue;
+			}
+			if (failedModelIds.has(modelId)) {
+				modelsToRetry.push(modelId);
+			} else {
+				modelsToAdd.push(modelId);
+			}
+		}
+
+		if (modelsToAdd.length === 0 && modelsToRetry.length === 0) {
+			return {
+				success: false,
+				addedCount: 0,
+				retryCount: 0,
+				error: 'All models already exist in this generation'
+			};
+		}
+
+		for (const modelId of modelsToAdd) {
+			await db.insert(generationItems).values({
+				id: crypto.randomUUID(),
+				generationId,
+				modelId,
+				modelName: modelId,
+				status: 'pending'
+			});
+		}
+
+		for (const modelId of modelsToRetry) {
+			const existingItem = existingItemsByModel.get(modelId);
+			if (existingItem) {
+				await db
+					.update(generationItems)
+					.set({ status: 'pending', error: null })
+					.where(eq(generationItems.id, existingItem.id));
+			}
+		}
+
+		if (generation.status === 'completed' || modelsToRetry.length > 0) {
+			await db
+				.update(generations)
+				.set({ status: 'in_progress', startedAt: new Date() })
+				.where(eq(generations.id, generationId));
+
+			this.processGeneration(generationId, apiKey).catch((err) => {
+				console.error('Add models processing error:', err);
+			});
+		}
+
+		return { success: true, addedCount: modelsToAdd.length, retryCount: modelsToRetry.length };
+	}
+
 	async retryItem(itemId: string, userId: string, apiKey: string): Promise<void> {
 		const [item] = await db.select().from(generationItems).where(eq(generationItems.id, itemId));
 
