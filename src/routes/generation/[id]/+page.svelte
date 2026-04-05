@@ -120,10 +120,15 @@
 		mobile: 812
 	} as const;
 
+	let previewViewportWidth = $derived.by(() => {
+		const baseWidth = deviceWidths[device];
+		if (device !== 'desktop' || previewFrameWidth <= 0) return baseWidth;
+		return Math.max(baseWidth, previewFrameWidth);
+	});
+
 	let previewScale = $derived.by(() => {
-		const deviceWidth = deviceWidths[device];
 		if (previewFrameWidth <= 0) return 1;
-		return Math.min(1, previewFrameWidth / deviceWidth);
+		return Math.min(1, previewFrameWidth / previewViewportWidth);
 	});
 
 	let scaledPreviewHeight = $derived(
@@ -376,7 +381,7 @@
 				>
 					<span class="text-xs font-medium text-zinc-400 capitalize sm:text-sm">{device}</span>
 					<div class="flex items-center gap-2">
-						<span class="text-xs text-zinc-500 sm:text-sm">{deviceWidths[device]}px</span>
+						<span class="text-xs text-zinc-500 sm:text-sm">{previewViewportWidth}px</span>
 						<button
 							type="button"
 							onclick={() => {
@@ -411,22 +416,20 @@
 				>
 					<div
 						class="mx-auto origin-top-left overflow-hidden"
-						style="width: {deviceWidths[device] * previewScale}px; height: {scaledPreviewHeight}px;"
+						style="width: {previewViewportWidth * previewScale}px; height: {scaledPreviewHeight}px;"
 					>
 						<iframe
 							srcdoc={createSandboxedPreviewDocument(currentItem.html, {
 								resizeToContent: true,
 								previewId: currentItem.id,
 								viewport: {
-									width: deviceWidths[device],
+									width: previewViewportWidth,
 									height: deviceHeights[device]
 								}
 							})}
 							title="{device} preview"
 							class="block"
-							style="width: {deviceWidths[
-								device
-							]}px; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px; transform: scale({previewScale}); transform-origin: top left;"
+							style="width: {previewViewportWidth}px; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px; transform: scale({previewScale}); transform-origin: top left;"
 							sandbox="allow-scripts"
 							scrolling="no"
 						></iframe>
