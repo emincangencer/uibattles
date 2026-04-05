@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { createSandboxedPreviewDocument } from '$lib/utils';
 	import ModelSelector from '$lib/components/ModelSelector.svelte';
 	import ApiKeyInput from '$lib/components/ApiKeyInput.svelte';
@@ -128,6 +129,11 @@
 	let scaledPreviewHeight = $derived(
 		Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(previewHeight * previewScale))
 	);
+	let standalonePreviewHref = $derived.by(() => {
+		if (!currentItem) return '#';
+
+		return resolve('/preview/[itemId]', { itemId: currentItem.id });
+	});
 
 	onMount(() => {
 		const viewedKey = `viewed_${generation.id}`;
@@ -186,6 +192,9 @@
 	}
 
 	let currentItem = $derived(polledItems[selectedModelIndex] || null);
+	let canOpenStandalonePreview = $derived(
+		!!currentItem && currentItem.status === 'completed' && currentItem.html.trim().length > 0
+	);
 
 	function toggleModel(modelId: string) {
 		if (selectedModels.includes(modelId)) {
@@ -366,7 +375,35 @@
 					class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-zinc-700 bg-zinc-900 px-2 py-1 sm:px-4 sm:py-2"
 				>
 					<span class="text-xs font-medium text-zinc-400 capitalize sm:text-sm">{device}</span>
-					<span class="text-xs text-zinc-500 sm:text-sm">{deviceWidths[device]}px</span>
+					<div class="flex items-center gap-2">
+						<span class="text-xs text-zinc-500 sm:text-sm">{deviceWidths[device]}px</span>
+						<button
+							type="button"
+							onclick={() => {
+								if (!canOpenStandalonePreview) return;
+								window.open(standalonePreviewHref, '_blank', 'noopener,noreferrer');
+							}}
+							class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+							aria-label="Open preview in new tab"
+							title={canOpenStandalonePreview
+								? 'Open preview in new tab'
+								: 'Preview available after generation completes'}
+							disabled={!canOpenStandalonePreview}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M14 3h7v7" />
+								<path d="M10 14 21 3" />
+								<path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" />
+							</svg>
+						</button>
+					</div>
 				</div>
 				<div
 					bind:clientWidth={previewFrameWidth}

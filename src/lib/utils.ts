@@ -22,7 +22,7 @@ export function formatDateTime(date: Date): string {
 	}).format(new Date(date));
 }
 
-const PREVIEW_CSP = [
+export const PREVIEW_CSP = [
 	"default-src 'none'",
 	"base-uri 'none'",
 	"form-action 'none'",
@@ -41,6 +41,22 @@ const PREVIEW_CSP = [
 
 const CSP_META_TAG = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`;
 const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
+const STANDALONE_PREVIEW_CSP = [
+	"default-src 'none'",
+	"base-uri 'none'",
+	"form-action 'none'",
+	"frame-ancestors 'none'",
+	"object-src 'none'",
+	"connect-src 'none'",
+	"frame-src 'self'",
+	"child-src 'self'",
+	"manifest-src 'none'",
+	'img-src data: blob:',
+	'media-src data: blob:',
+	'font-src https://fonts.gstatic.com data:',
+	"style-src 'unsafe-inline' https://fonts.googleapis.com",
+	"script-src 'unsafe-inline'"
+].join('; ');
 
 interface PreviewViewport {
 	width: number;
@@ -51,6 +67,24 @@ interface PreviewDocumentOptions {
 	resizeToContent?: boolean;
 	previewId?: string;
 	viewport?: PreviewViewport;
+}
+
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+function serializeForInlineScript(value: unknown): string {
+	return JSON.stringify(value)
+		.replace(/</g, '\\u003C')
+		.replace(/>/g, '\\u003E')
+		.replace(/&/g, '\\u0026')
+		.replace(/\u2028/g, '\\u2028')
+		.replace(/\u2029/g, '\\u2029');
 }
 
 export function sanitizeRedirectPath(value: string | null | undefined, fallback = '/'): string {
@@ -280,4 +314,73 @@ export function createSandboxedPreviewDocument(
 	}
 
 	return `<!doctype html><html><head>${headInjection}</head><body>${trimmed}</body></html>`;
+}
+
+export function createStandalonePreviewDocument(
+	html: string,
+	options: {
+		title?: string;
+	}
+): { html: string; csp: string } {
+	const previewDocument = createSandboxedPreviewDocument(html);
+	const title = options.title ?? 'Preview';
+	const previewDocumentJson = serializeForInlineScript(previewDocument);
+	const escapedTitle = escapeHtml(title);
+
+	return {
+		csp: STANDALONE_PREVIEW_CSP,
+		html: `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>${escapedTitle}</title>
+<style>
+	:root {
+		color-scheme: dark;
+	}
+
+	* {
+		box-sizing: border-box;
+	}
+
+	html,
+	body {
+		margin: 0;
+		min-height: 100%;
+		background: #09090b;
+	}
+
+	body {
+		overflow-x: hidden;
+	}
+
+	.preview-shell {
+		width: 100vw;
+		height: 100vh;
+	}
+
+	iframe {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		background: transparent;
+	}
+</style>
+</head>
+<body>
+<main class="preview-shell">
+	<iframe id="preview-frame" title=${JSON.stringify(title)} sandbox="allow-scripts" scrolling="auto"></iframe>
+</main>
+<script>
+(() => {
+	const iframe = document.getElementById('preview-frame');
+	iframe.srcdoc = ${previewDocumentJson};
+})();
+</script>
+</body>
+</html>`
+	};
 }
