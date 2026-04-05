@@ -52,6 +52,7 @@
 	let showAddModelModal = $state(false);
 	let codeCopied = $state(false);
 	let previewHeight = $state(PREVIEW_FALLBACK_HEIGHT);
+	let previewFrameWidth = $state(0);
 
 	let localLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
 
@@ -111,6 +112,22 @@
 		tablet: 768,
 		mobile: 375
 	} as const;
+
+	const deviceHeights = {
+		desktop: 900,
+		tablet: 1024,
+		mobile: 812
+	} as const;
+
+	let previewScale = $derived.by(() => {
+		const deviceWidth = deviceWidths[device];
+		if (previewFrameWidth <= 0) return 1;
+		return Math.min(1, previewFrameWidth / deviceWidth);
+	});
+
+	let scaledPreviewHeight = $derived(
+		Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(previewHeight * previewScale))
+	);
 
 	onMount(() => {
 		const viewedKey = `viewed_${generation.id}`;
@@ -351,20 +368,32 @@
 					<span class="text-xs font-medium text-zinc-400 capitalize sm:text-sm">{device}</span>
 					<span class="text-xs text-zinc-500 sm:text-sm">{deviceWidths[device]}px</span>
 				</div>
-				<div class="w-full overflow-hidden rounded-b-lg border border-zinc-700">
-					<iframe
-						srcdoc={createSandboxedPreviewDocument(currentItem.html, {
-							resizeToContent: true,
-							previewId: currentItem.id
-						})}
-						title="{device} preview"
-						class="mx-auto block"
-						style="width: {deviceWidths[
-							device
-						]}px; max-width: 100%; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px;"
-						sandbox="allow-scripts"
-						scrolling="yes"
-					></iframe>
+				<div
+					bind:clientWidth={previewFrameWidth}
+					class="w-full overflow-hidden rounded-b-lg border border-zinc-700"
+				>
+					<div
+						class="mx-auto origin-top-left overflow-hidden"
+						style="width: {deviceWidths[device] * previewScale}px; height: {scaledPreviewHeight}px;"
+					>
+						<iframe
+							srcdoc={createSandboxedPreviewDocument(currentItem.html, {
+								resizeToContent: true,
+								previewId: currentItem.id,
+								viewport: {
+									width: deviceWidths[device],
+									height: deviceHeights[device]
+								}
+							})}
+							title="{device} preview"
+							class="block"
+							style="width: {deviceWidths[
+								device
+							]}px; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px; transform: scale({previewScale}); transform-origin: top left;"
+							sandbox="allow-scripts"
+							scrolling="no"
+						></iframe>
+					</div>
 				</div>
 			</div>
 		</div>

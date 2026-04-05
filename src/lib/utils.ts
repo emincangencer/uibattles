@@ -42,9 +42,15 @@ const PREVIEW_CSP = [
 const CSP_META_TAG = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`;
 const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
 
+interface PreviewViewport {
+	width: number;
+	height: number;
+}
+
 interface PreviewDocumentOptions {
 	resizeToContent?: boolean;
 	previewId?: string;
+	viewport?: PreviewViewport;
 }
 
 export function sanitizeRedirectPath(value: string | null | undefined, fallback = '/'): string {
@@ -115,16 +121,155 @@ function createPreviewResizeScript(previewId: string): string {
 </script>`;
 }
 
+function createPreviewViewportNormalizationScript(viewport: PreviewViewport): string {
+	const payload = JSON.stringify({
+		width: viewport.width,
+		height: viewport.height
+	});
+
+	return `<script>
+(() => {
+	const viewport = ${payload};
+	const VIEWPORT_UNIT_PATTERN = /(-?\\d*\\.?\\d+)\\s*(dvh|svh|lvh|vh|dvw|svw|lvw|vw|vmin|vmax)/gi;
+	const BASE_STYLE_ID = 'uibattles-preview-viewport-units';
+
+	function ensureBaseStyle() {
+		if (document.getElementById(BASE_STYLE_ID)) return;
+
+		const style = document.createElement('style');
+		style.id = BASE_STYLE_ID;
+		style.textContent =
+			':root {' +
+			'--uibattles-preview-vw: ' + viewport.width / 100 + 'px;' +
+			'--uibattles-preview-vh: ' + viewport.height / 100 + 'px;' +
+			'--uibattles-preview-vmin: ' + Math.min(viewport.width, viewport.height) / 100 + 'px;' +
+			'--uibattles-preview-vmax: ' + Math.max(viewport.width, viewport.height) / 100 + 'px;' +
+			'}';
+
+		(document.head || document.documentElement).appendChild(style);
+	}
+
+	function toReplacementValue(amount, unit) {
+		const normalizedUnit = unit.toLowerCase();
+		if (normalizedUnit === 'vw' || normalizedUnit === 'svw' || normalizedUnit === 'lvw' || normalizedUnit === 'dvw') {
+			return 'calc(var(--uibattles-preview-vw) * ' + amount + ')';
+		}
+		if (normalizedUnit === 'vmin') {
+			return 'calc(var(--uibattles-preview-vmin) * ' + amount + ')';
+		}
+		if (normalizedUnit === 'vmax') {
+			return 'calc(var(--uibattles-preview-vmax) * ' + amount + ')';
+		}
+		return 'calc(var(--uibattles-preview-vh) * ' + amount + ')';
+	}
+
+	function normalizeCssValue(value) {
+		return value.replace(VIEWPORT_UNIT_PATTERN, (match, amount, unit) => {
+			if (!amount || !unit) return match;
+			return toReplacementValue(amount, unit);
+		});
+	}
+
+	function normalizeStyleElement(styleElement) {
+		if (!(styleElement instanceof HTMLStyleElement)) return;
+		if (styleElement.id === BASE_STYLE_ID) return;
+
+		const original = styleElement.textContent || '';
+		const normalized = normalizeCssValue(original);
+		if (normalized !== original) {
+			styleElement.textContent = normalized;
+		}
+	}
+
+	function normalizeInlineStyle(element) {
+		if (!(element instanceof HTMLElement)) return;
+		const original = element.getAttribute('style');
+		if (!original) return;
+
+		const normalized = normalizeCssValue(original);
+		if (normalized !== original) {
+			element.setAttribute('style', normalized);
+		}
+	}
+
+	function normalizeTree(root) {
+		if (!(root instanceof Element || root instanceof Document)) return;
+
+		if (root instanceof HTMLStyleElement) {
+			normalizeStyleElement(root);
+			return;
+		}
+
+		if (root instanceof HTMLElement) {
+			normalizeInlineStyle(root);
+		}
+
+		root.querySelectorAll('style').forEach((styleElement) => {
+			normalizeStyleElement(styleElement);
+		});
+		root.querySelectorAll('[style]').forEach((element) => {
+			normalizeInlineStyle(element);
+		});
+	}
+
+	ensureBaseStyle();
+	normalizeTree(document);
+
+	const observer = new MutationObserver((mutations) => {
+		for (const mutation of mutations) {
+			if (mutation.type === 'characterData') {
+				const parentElement = mutation.target.parentElement;
+				if (parentElement instanceof HTMLStyleElement) {
+					normalizeStyleElement(parentElement);
+				}
+				continue;
+			}
+
+			if (mutation.type === 'attributes' && mutation.target instanceof HTMLElement) {
+				normalizeInlineStyle(mutation.target);
+				continue;
+			}
+
+			if (mutation.target instanceof HTMLStyleElement) {
+				normalizeStyleElement(mutation.target);
+			}
+
+			for (const node of mutation.addedNodes) {
+				if (node instanceof Element) {
+					normalizeTree(node);
+				}
+			}
+		}
+	});
+
+	observer.observe(document.documentElement, {
+		subtree: true,
+		childList: true,
+		characterData: true,
+		attributes: true,
+		attributeFilter: ['style']
+	});
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', () => normalizeTree(document), { once: true });
+	}
+})();
+</script>`;
+}
+
 export function createSandboxedPreviewDocument(
 	html: string,
 	options: PreviewDocumentOptions = {}
 ): string {
 	const trimmed = html.trim();
+	const viewportScript = options.viewport
+		? createPreviewViewportNormalizationScript(options.viewport)
+		: '';
 	const resizeScript =
 		options.resizeToContent && options.previewId
 			? createPreviewResizeScript(options.previewId)
 			: '';
-	const headInjection = `${CSP_META_TAG}${resizeScript}`;
+	const headInjection = `${CSP_META_TAG}${viewportScript}${resizeScript}`;
 
 	if (/<head(\s|>)/i.test(trimmed)) {
 		return trimmed.replace(/<head(\s*[^>]*)>/i, `<head$1>${headInjection}`);
