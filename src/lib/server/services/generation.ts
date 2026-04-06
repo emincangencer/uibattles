@@ -287,7 +287,9 @@ export class GenerationService {
 				if (lastError?.responseBody) {
 					try {
 						const parsed = JSON.parse(lastError.responseBody);
-						if (parsed.error?.message) {
+						if (parsed.error?.metadata?.raw) {
+							errorMessage = parsed.error.metadata.raw;
+						} else if (parsed.error?.message) {
 							errorMessage = parsed.error.message;
 						}
 					} catch {
@@ -302,7 +304,10 @@ export class GenerationService {
 						if (err.responseBody) {
 							try {
 								const parsed = JSON.parse(err.responseBody);
-								if (parsed.error?.message) {
+								if (parsed.error?.metadata?.raw) {
+									errorMessage = parsed.error.metadata.raw;
+									break;
+								} else if (parsed.error?.message) {
 									errorMessage = parsed.error.message;
 									break;
 								}
@@ -325,7 +330,9 @@ export class GenerationService {
 				if (apiError.responseBody) {
 					try {
 						const parsed = JSON.parse(apiError.responseBody);
-						if (parsed.error?.message) {
+						if (parsed.error?.metadata?.raw) {
+							errorMessage = parsed.error.metadata.raw;
+						} else if (parsed.error?.message) {
 							errorMessage = parsed.error.message;
 						}
 					} catch {
