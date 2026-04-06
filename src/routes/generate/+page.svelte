@@ -255,11 +255,39 @@
 
 	async function handleRetryItem(generationId: string, itemId: string) {
 		try {
-			await fetch(`/api/generation/item/${itemId}/retry`, {
+			const response = await fetch(`/api/generation/item/${itemId}/retry`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ apiKey })
 			});
+
+			const result: { success?: boolean; error?: string } = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Retry failed');
+			}
+
+			generations = generations.map((generation) => {
+				if (generation.id !== generationId) {
+					return generation;
+				}
+
+				return {
+					...generation,
+					status: 'in_progress',
+					items: generation.items.map((item) =>
+						item.id === itemId
+							? {
+									...item,
+									status: 'pending',
+									error: null
+								}
+							: item
+					)
+				};
+			});
+
+			connectToStream(generationId);
 		} catch (e) {
 			console.error('Retry failed:', e);
 		}

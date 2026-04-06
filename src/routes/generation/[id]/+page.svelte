@@ -258,6 +258,8 @@
 	}
 
 	function pollNewItems() {
+		clearPollInterval();
+
 		pollInterval = setInterval(async () => {
 			try {
 				const response = await fetch(`/api/generation/${generation.id}/status`);
@@ -267,6 +269,7 @@
 				}
 
 				const status: {
+					status: string;
 					items: Array<{
 						id: string;
 						modelId: string;
@@ -286,15 +289,13 @@
 					status: item.status
 				}));
 
-				if (polledItems.length > selectedModelIndex) {
-					const currentStatus = polledItems[selectedModelIndex].status;
-					if (
-						currentStatus === 'completed' ||
-						currentStatus === 'error' ||
-						currentStatus === 'aborted'
-					) {
-						clearPollInterval();
-					}
+				const allItemsComplete = status.items.every(
+					(item) =>
+						item.status === 'completed' || item.status === 'error' || item.status === 'aborted'
+				);
+
+				if (status.status === 'completed' || status.status === 'aborted' || allItemsComplete) {
+					clearPollInterval();
 				}
 			} catch {
 				clearPollInterval();

@@ -64,6 +64,7 @@ export interface GenerationItemStatus {
 	modelId: string;
 	modelName: string;
 	status: 'pending' | 'generating' | 'completed' | 'error' | 'aborted';
+	html: string;
 	error: string | null;
 	startedAt: Date | null;
 	completedAt: Date | null;
@@ -126,23 +127,20 @@ export class GenerationService {
 			.where(eq(generations.id, generationId));
 
 		const openrouter = createOpenRouter({ apiKey });
-
-		const allItems = await db
-			.select()
-			.from(generationItems)
-			.where(eq(generationItems.generationId, generationId))
-			.orderBy(asc(generationItems.createdAt));
-
-		const pendingItems = allItems.filter((item) => item.status === 'pending');
-
-		for (let i = 0; i < pendingItems.length; i += MAX_CONCURRENT) {
+		while (true) {
 			const [generation] = await db
 				.select()
 				.from(generations)
 				.where(eq(generations.id, generationId));
 
+			const currentItems = await db
+				.select()
+				.from(generationItems)
+				.where(eq(generationItems.generationId, generationId))
+				.orderBy(asc(generationItems.createdAt));
+
 			if (generation?.abortRequested) {
-				await this.abortRemaining(generationId, allItems);
+				await this.abortRemaining(generationId, currentItems);
 				await db
 					.update(generations)
 					.set({ status: 'aborted', completedAt: new Date() })
@@ -151,8 +149,12 @@ export class GenerationService {
 				return;
 			}
 
-			const chunk = pendingItems.slice(i, i + MAX_CONCURRENT);
+			const pendingItems = currentItems.filter((item) => item.status === 'pending');
+			if (pendingItems.length === 0) {
+				break;
+			}
 
+			const chunk = pendingItems.slice(0, MAX_CONCURRENT);
 			await Promise.all(chunk.map((item) => this.processModelWithTimeout(item, openrouter)));
 		}
 
@@ -235,11 +237,33 @@ export class GenerationService {
 				return;
 			}
 
+			const [updatedGeneration] = await db
+				.select()
+				.from(generations)
+				.where(eq(generations.id, item.generationId));
+
+			if (updatedGeneration?.abortRequested) {
+				await db
+					.update(generationItems)
+					.set({ status: 'aborted', completedAt: new Date() })
+					.where(eq(generationItems.id, item.id));
+				return;
+			}
+
 			await db
 				.update(generationItems)
 				.set({ status: 'completed', html, completedAt: new Date() })
 				.where(eq(generationItems.id, item.id));
 		} catch (error) {
+			const [latestItem] = await db
+				.select()
+				.from(generationItems)
+				.where(eq(generationItems.id, item.id));
+
+			if (latestItem?.status === 'aborted') {
+				return;
+			}
+
 			let errorMessage = 'Generation failed';
 
 			// Handle abort error from timeout
@@ -342,10 +366,18 @@ export class GenerationService {
 	}
 
 	async abort(generationId: string): Promise<void> {
+		const now = new Date();
+		const items = await db
+			.select()
+			.from(generationItems)
+			.where(eq(generationItems.generationId, generationId));
+
 		await db
 			.update(generations)
-			.set({ abortRequested: true })
+			.set({ abortRequested: true, status: 'aborted', completedAt: now })
 			.where(eq(generations.id, generationId));
+
+		await this.abortRemaining(generationId, items);
 	}
 
 	async addModels(
@@ -416,7 +448,7 @@ export class GenerationService {
 			if (existingItem) {
 				await db
 					.update(generationItems)
-					.set({ status: 'pending', error: null })
+					.set({ status: 'pending', error: null, startedAt: null, completedAt: null })
 					.where(eq(generationItems.id, existingItem.id));
 			}
 		}
@@ -424,7 +456,12 @@ export class GenerationService {
 		if (generation.status === 'completed' || modelsToRetry.length > 0) {
 			await db
 				.update(generations)
-				.set({ status: 'in_progress', startedAt: new Date() })
+				.set({
+					status: 'in_progress',
+					startedAt: new Date(),
+					completedAt: null,
+					abortRequested: false
+				})
 				.where(eq(generations.id, generationId));
 
 			this.processGeneration(generationId, apiKey).catch((err) => {
@@ -464,12 +501,33 @@ export class GenerationService {
 			.set({ status: 'pending', error: null, startedAt: null, completedAt: null })
 			.where(eq(generationItems.id, itemId));
 
+		await db
+			.update(generations)
+			.set({
+				status: 'in_progress',
+				startedAt: new Date(),
+				completedAt: null,
+				abortRequested: false
+			})
+			.where(eq(generations.id, item.generationId));
+
 		this.processGeneration(item.generationId, apiKey).catch((err) => {
 			console.error('Retry processing error:', err);
 		});
 	}
 
 	async getStatus(generationId: string): Promise<GenerationStatus | null> {
+		const [initialGeneration] = await db
+			.select()
+			.from(generations)
+			.where(eq(generations.id, generationId));
+
+		if (!initialGeneration) {
+			return null;
+		}
+
+		await this.reconcileGenerationState(initialGeneration);
+
 		const [generation] = await db
 			.select()
 			.from(generations)
@@ -499,11 +557,70 @@ export class GenerationService {
 				modelId: item.modelId,
 				modelName: item.modelName,
 				status: item.status as GenerationItemStatus['status'],
+				html: item.html ?? '',
 				error: item.error,
 				startedAt: item.startedAt,
 				completedAt: item.completedAt
 			}))
 		};
+	}
+
+	private async reconcileGenerationState(
+		generation: typeof generations.$inferSelect
+	): Promise<void> {
+		const items = await db
+			.select()
+			.from(generationItems)
+			.where(eq(generationItems.generationId, generation.id));
+
+		if (generation.abortRequested || generation.status === 'aborted') {
+			await this.abortRemaining(generation.id, items);
+			if (generation.status !== 'aborted' || !generation.completedAt) {
+				await db
+					.update(generations)
+					.set({ status: 'aborted', completedAt: generation.completedAt ?? new Date() })
+					.where(eq(generations.id, generation.id));
+			}
+			return;
+		}
+
+		const now = Date.now();
+		const staleGeneratingItems = items.filter(
+			(item) =>
+				item.status === 'generating' &&
+				item.startedAt !== null &&
+				now - item.startedAt.getTime() > MODEL_TIMEOUT_MS
+		);
+
+		for (const item of staleGeneratingItems) {
+			await db
+				.update(generationItems)
+				.set({
+					status: 'error',
+					error: 'Generation timed out (5 minute limit)',
+					completedAt: new Date()
+				})
+				.where(eq(generationItems.id, item.id));
+		}
+
+		if (staleGeneratingItems.length > 0) {
+			return this.reconcileGenerationState(generation);
+		}
+
+		const hasActiveItems = items.some(
+			(item) => item.status === 'pending' || item.status === 'generating'
+		);
+
+		if (
+			!hasActiveItems &&
+			(generation.status === 'pending' || generation.status === 'in_progress')
+		) {
+			const allAborted = items.length > 0 && items.every((item) => item.status === 'aborted');
+			await db
+				.update(generations)
+				.set({ status: allAborted ? 'aborted' : 'completed', completedAt: new Date() })
+				.where(eq(generations.id, generation.id));
+		}
 	}
 
 	async getPaginatedGenerations(params: {
