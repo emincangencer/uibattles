@@ -41,6 +41,7 @@ export const PREVIEW_CSP = [
 
 const CSP_META_TAG = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`;
 const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
+const PREVIEW_HOST_SCROLL_MESSAGE_TYPE = 'uibattles-preview-host-scroll';
 const STANDALONE_PREVIEW_CSP = [
 	"default-src 'none'",
 	"base-uri 'none'",
@@ -66,6 +67,7 @@ interface PreviewViewport {
 interface PreviewDocumentOptions {
 	resizeToContent?: boolean;
 	previewId?: string;
+	syncHostScroll?: boolean;
 	viewport?: PreviewViewport;
 }
 
@@ -151,6 +153,93 @@ function createPreviewResizeScript(previewId: string): string {
 
 	schedulePost();
 	setTimeout(postHeight, 150);
+})();
+</script>`;
+}
+
+function createPreviewHostScrollSyncScript(previewId: string): string {
+	return `<script>
+(() => {
+	const messageType = ${JSON.stringify(PREVIEW_HOST_SCROLL_MESSAGE_TYPE)};
+	const expectedPreviewId = ${JSON.stringify(previewId)};
+	const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+	const state = {
+		scrollTop: 0,
+		viewportHeight: window.innerHeight
+	};
+
+	function defineInstanceProperty(target, key, getter) {
+		try {
+			Object.defineProperty(target, key, {
+				configurable: true,
+				get: getter
+			});
+		} catch {}
+	}
+
+	function applyVirtualMetrics() {
+		defineInstanceProperty(window, 'scrollY', () => state.scrollTop);
+		defineInstanceProperty(window, 'pageYOffset', () => state.scrollTop);
+		defineInstanceProperty(window, 'innerHeight', () => state.viewportHeight);
+
+		if (document.documentElement) {
+			defineInstanceProperty(document.documentElement, 'scrollTop', () => state.scrollTop);
+			defineInstanceProperty(document.documentElement, 'clientHeight', () => state.viewportHeight);
+		}
+
+		if (document.body) {
+			defineInstanceProperty(document.body, 'scrollTop', () => state.scrollTop);
+			defineInstanceProperty(document.body, 'clientHeight', () => state.viewportHeight);
+		}
+	}
+
+	Element.prototype.getBoundingClientRect = function () {
+		const rect = originalGetBoundingClientRect.call(this);
+		if (
+			this === document.documentElement ||
+			this === document.body ||
+			(this instanceof HTMLElement && getComputedStyle(this).position === 'fixed')
+		) {
+			return rect;
+		}
+
+		return new DOMRect(rect.x, rect.y - state.scrollTop, rect.width, rect.height);
+	};
+
+	function emitViewportEvents(viewportChanged) {
+		window.dispatchEvent(new Event('scroll'));
+		document.dispatchEvent(new Event('scroll'));
+
+		if (viewportChanged) {
+			window.dispatchEvent(new Event('resize'));
+		}
+	}
+
+	window.addEventListener('message', (event) => {
+		const data = event.data;
+		if (!data || typeof data !== 'object') return;
+		if (data.type !== messageType || data.previewId !== expectedPreviewId) return;
+
+		const nextScrollTop =
+			typeof data.scrollTop === 'number' && Number.isFinite(data.scrollTop)
+				? Math.max(0, data.scrollTop)
+				: state.scrollTop;
+		const nextViewportHeight =
+			typeof data.viewportHeight === 'number' && Number.isFinite(data.viewportHeight)
+				? Math.max(0, data.viewportHeight)
+				: state.viewportHeight;
+
+		const scrollChanged = nextScrollTop !== state.scrollTop;
+		const viewportChanged = nextViewportHeight !== state.viewportHeight;
+		if (!scrollChanged && !viewportChanged) return;
+
+		state.scrollTop = nextScrollTop;
+		state.viewportHeight = nextViewportHeight;
+		applyVirtualMetrics();
+		emitViewportEvents(viewportChanged);
+	});
+
+	applyVirtualMetrics();
 })();
 </script>`;
 }
@@ -299,11 +388,15 @@ export function createSandboxedPreviewDocument(
 	const viewportScript = options.viewport
 		? createPreviewViewportNormalizationScript(options.viewport)
 		: '';
+	const hostScrollSyncScript =
+		options.syncHostScroll && options.previewId
+			? createPreviewHostScrollSyncScript(options.previewId)
+			: '';
 	const resizeScript =
 		options.resizeToContent && options.previewId
 			? createPreviewResizeScript(options.previewId)
 			: '';
-	const headInjection = `${CSP_META_TAG}${viewportScript}${resizeScript}`;
+	const headInjection = `${CSP_META_TAG}${viewportScript}${hostScrollSyncScript}${resizeScript}`;
 
 	if (/<head(\s|>)/i.test(trimmed)) {
 		return trimmed.replace(/<head(\s*[^>]*)>/i, `<head$1>${headInjection}`);

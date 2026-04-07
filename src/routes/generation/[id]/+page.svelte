@@ -28,6 +28,7 @@
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
 	const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
+	const PREVIEW_HOST_SCROLL_MESSAGE_TYPE = 'uibattles-preview-host-scroll';
 	const PREVIEW_FALLBACK_HEIGHT = 500;
 
 	let { data } = $props();
@@ -54,6 +55,7 @@
 	let codeCopied = $state(false);
 	let previewHeight = $state(PREVIEW_FALLBACK_HEIGHT);
 	let previewFrameWidth = $state(0);
+	let previewIframe: HTMLIFrameElement | null = $state(null);
 
 	let localLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
 
@@ -196,6 +198,27 @@
 		previewHeight = Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(data.height));
 	}
 
+	function syncPreviewScrollState() {
+		if (typeof window === 'undefined' || !previewIframe?.contentWindow || !currentItem) return;
+
+		const rect = previewIframe.getBoundingClientRect();
+		const viewportHeight = Math.max(
+			0,
+			Math.min(window.innerHeight, rect.bottom) - Math.max(0, rect.top)
+		);
+		const scrollTop = Math.max(0, -rect.top);
+
+		previewIframe.contentWindow.postMessage(
+			{
+				type: PREVIEW_HOST_SCROLL_MESSAGE_TYPE,
+				previewId: currentItem.id,
+				scrollTop,
+				viewportHeight
+			},
+			'*'
+		);
+	}
+
 	let currentItem = $derived(polledItems[selectedModelIndex] || null);
 	let canOpenStandalonePreview = $derived(
 		!!currentItem && currentItem.status === 'completed' && currentItem.html.trim().length > 0
@@ -320,10 +343,20 @@
 			previewHeight = PREVIEW_FALLBACK_HEIGHT;
 		}
 	});
+
+	$effect(() => {
+		if (typeof window === 'undefined' || !currentItem) return;
+
+		requestAnimationFrame(() => {
+			syncPreviewScrollState();
+		});
+	});
 </script>
 
 <svelte:window
 	onmessage={handlePreviewMessage}
+	onscroll={syncPreviewScrollState}
+	onresize={syncPreviewScrollState}
 	onkeydown={(e) => {
 		if (e.key === 'Escape') {
 			showPromptModal = false;
@@ -420,14 +453,17 @@
 						style="width: {previewViewportWidth * previewScale}px; height: {scaledPreviewHeight}px;"
 					>
 						<iframe
+							bind:this={previewIframe}
 							srcdoc={createSandboxedPreviewDocument(currentItem.html, {
 								resizeToContent: true,
+								syncHostScroll: true,
 								previewId: currentItem.id,
 								viewport: {
 									width: previewViewportWidth,
 									height: deviceHeights[device]
 								}
 							})}
+							onload={syncPreviewScrollState}
 							title="{device} preview"
 							class="block"
 							style="width: {previewViewportWidth}px; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px; transform: scale({previewScale}); transform-origin: top left;"
