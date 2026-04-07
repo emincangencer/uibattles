@@ -59,7 +59,7 @@
 
 {#if visible}
 	<div
-		class="fixed top-0 left-0 z-[100] h-0.5 bg-primary transition-all duration-300 ease-out"
+		class="bg-primary fixed top-0 left-0 z-[100] h-0.5 transition-all duration-300 ease-out"
 		style:width="{p}%"
 		style:opacity
 	></div>
