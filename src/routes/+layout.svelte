@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
+	import NavigationProgressBar from '$lib/components/NavigationProgressBar.svelte';
 
 	interface User {
 		id: string;
@@ -16,6 +17,8 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
+
+<NavigationProgressBar />
 
 <div class="min-h-screen bg-zinc-950 text-zinc-100">
 	<Navbar {user} />
