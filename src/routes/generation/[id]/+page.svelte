@@ -419,6 +419,39 @@
 						<button
 							type="button"
 							onclick={() => {
+								if (!previewIframe) return;
+								previewIframe.srcdoc = createSandboxedPreviewDocument(currentItem.html, {
+									resizeToContent: true,
+									syncHostScroll: true,
+									previewId: currentItem.id,
+									viewport: {
+										width: previewViewportWidth,
+										height: deviceHeights[device]
+									}
+								});
+							}}
+							class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+							aria-label="Reload preview"
+							title="Reload preview"
+							disabled={!currentItem}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M21 2v6h-6" />
+								<path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+								<path d="M3 22v-6h6" />
+								<path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+							</svg>
+						</button>
+						<button
+							type="button"
+							onclick={() => {
 								if (!canOpenStandalonePreview) return;
 								window.open(standalonePreviewHref, '_blank', 'noopener,noreferrer');
 							}}
