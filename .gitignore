@@ -25,3 +25,6 @@ vite.config.ts.timestamp-*
 /worker-configuration.d.ts
 # SQLite
 *.db
+
+# agent related
+.codex
