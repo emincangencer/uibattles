@@ -71,6 +71,7 @@ export const generationItems = sqliteTable('generation_items', {
 	generationId: text('generation_id')
 		.notNull()
 		.references(() => generations.id, { onDelete: 'cascade' }),
+	userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
 	modelId: text('model_id').notNull(),
 	modelName: text('model_name').notNull(),
 	html: text('html'),

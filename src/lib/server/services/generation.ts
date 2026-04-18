@@ -1,7 +1,7 @@
 import { generateText, RetryError, APICallError } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { db } from '$lib/server/db';
-import { generations, generationItems, generationLikes } from '$lib/server/db/schema';
+import { generations, generationItems, generationLikes, user } from '$lib/server/db/schema';
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
 import { parse } from 'parse5';
 
@@ -63,6 +63,8 @@ export interface GenerationItemStatus {
 	id: string;
 	modelId: string;
 	modelName: string;
+	userId?: string | null;
+	contributorName?: string | null;
 	status: 'pending' | 'generating' | 'completed' | 'error' | 'aborted';
 	html: string;
 	error: string | null;
@@ -107,6 +109,7 @@ export class GenerationService {
 			await db.insert(generationItems).values({
 				id: crypto.randomUUID(),
 				generationId,
+				userId,
 				modelId,
 				modelName: modelId,
 				status: 'pending'
@@ -390,7 +393,8 @@ export class GenerationService {
 	async addModels(
 		generationId: string,
 		models: string[],
-		apiKey: string
+		apiKey: string,
+		userId: string
 	): Promise<{ success: boolean; addedCount: number; retryCount: number; error?: string }> {
 		const [generation] = await db
 			.select()
@@ -444,6 +448,7 @@ export class GenerationService {
 			await db.insert(generationItems).values({
 				id: crypto.randomUUID(),
 				generationId,
+				userId,
 				modelId,
 				modelName: modelId,
 				status: 'pending'
@@ -455,7 +460,13 @@ export class GenerationService {
 			if (existingItem) {
 				await db
 					.update(generationItems)
-					.set({ status: 'pending', error: null, startedAt: null, completedAt: null })
+					.set({
+						status: 'pending',
+						userId,
+						error: null,
+						startedAt: null,
+						completedAt: null
+					})
 					.where(eq(generationItems.id, existingItem.id));
 			}
 		}
@@ -545,8 +556,20 @@ export class GenerationService {
 		}
 
 		const items = await db
-			.select()
+			.select({
+				id: generationItems.id,
+				modelId: generationItems.modelId,
+				modelName: generationItems.modelName,
+				userId: generationItems.userId,
+				contributorName: user.name,
+				status: generationItems.status,
+				html: generationItems.html,
+				error: generationItems.error,
+				startedAt: generationItems.startedAt,
+				completedAt: generationItems.completedAt
+			})
 			.from(generationItems)
+			.leftJoin(user, eq(generationItems.userId, user.id))
 			.where(eq(generationItems.generationId, generationId))
 			.orderBy(asc(generationItems.createdAt));
 
@@ -563,6 +586,8 @@ export class GenerationService {
 				id: item.id,
 				modelId: item.modelId,
 				modelName: item.modelName,
+				userId: item.userId,
+				contributorName: item.contributorName,
 				status: item.status as GenerationItemStatus['status'],
 				html: item.html ?? '',
 				error: item.error,

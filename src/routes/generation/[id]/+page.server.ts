@@ -52,9 +52,12 @@ export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch 
 			html: generationItems.html,
 			status: generationItems.status,
 			error: generationItems.error,
-			createdAt: generationItems.createdAt
+			createdAt: generationItems.createdAt,
+			contributorId: generationItems.userId,
+			contributorName: user.name
 		})
 		.from(generationItems)
+		.leftJoin(user, eq(generationItems.userId, user.id))
 		.where(eq(generationItems.generationId, params.id))
 		.orderBy(asc(generationItems.createdAt));
 

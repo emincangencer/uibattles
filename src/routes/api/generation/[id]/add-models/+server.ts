@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			return json({ error: 'Generation ID required' }, { status: 400 });
 		}
 
-		const result = await generationService.addModels(generationId, models, apiKey);
+		const result = await generationService.addModels(generationId, models, apiKey, userId);
 
 		if (!result.success) {
 			return json({ error: result.error }, { status: 400 });

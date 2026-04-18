@@ -19,6 +19,8 @@
 		html: string;
 		createdAt: Date;
 		status?: string;
+		contributorId?: string | null;
+		contributorName?: string | null;
 	}
 
 	interface Model {
@@ -297,6 +299,8 @@
 						id: string;
 						modelId: string;
 						modelName: string;
+						userId?: string | null;
+						contributorName?: string | null;
 						status: string;
 						html?: string;
 						error?: string | null;
@@ -309,7 +313,9 @@
 					modelName: item.modelName,
 					html: item.html || '',
 					createdAt: new Date(),
-					status: item.status
+					status: item.status,
+					contributorId: item.userId,
+					contributorName: item.contributorName
 				}));
 
 				const allItemsComplete = status.items.every(
@@ -636,46 +642,62 @@
 				</div>
 
 				<div class="p-3 sm:p-4">
-					<ApiKeyInput
-						{apiKey}
-						{rememberMe}
-						disabled={isAddingModels}
-						idPrefix="add"
-						onUpdateApiKey={(key) => (apiKey = key)}
-						onUpdateRememberMe={(val) => (rememberMe = val)}
-					/>
-
-					<div class="mt-4">
-						<ModelSelector
-							{models}
-							{selectedModels}
-							excludedModels={completedModelIds}
-							retryableModels={failedModelIds}
-							disabled={isAddingModels}
-							maxHeight="max-h-48"
-							onToggle={toggleModel}
-						/>
-					</div>
-
-					{#if addModelError}
+					{#if !userLoggedIn}
 						<div
-							class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+							class="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-center"
 						>
-							{addModelError}
+							<p class="mb-3 text-sm text-zinc-300">Sign in to add models to this generation</p>
+							<a
+								href={`/login?redirect=/generation/${generation.id}`}
+								class="inline-block rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600"
+							>
+								Sign In
+							</a>
 						</div>
 					{/if}
 
-					<button
-						onclick={handleAddModels}
-						disabled={isAddingModels || selectedModels.length === 0}
-						class="mt-4 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-700"
-					>
-						{#if isAddingModels}
-							Adding models...
-						{:else}
-							Add {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
+					<div class={!userLoggedIn ? 'pointer-events-none opacity-50 grayscale' : ''}>
+						<ApiKeyInput
+							{apiKey}
+							{rememberMe}
+							disabled={isAddingModels || !userLoggedIn}
+							idPrefix="add"
+							onUpdateApiKey={(key) => (apiKey = key)}
+							onUpdateRememberMe={(val) => (rememberMe = val)}
+						/>
+
+						<div class="mt-4">
+							<ModelSelector
+								{models}
+								{selectedModels}
+								excludedModels={completedModelIds}
+								retryableModels={failedModelIds}
+								disabled={isAddingModels || !userLoggedIn}
+								maxHeight="max-h-48"
+								onToggle={toggleModel}
+							/>
+						</div>
+
+						{#if addModelError}
+							<div
+								class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+							>
+								{addModelError}
+							</div>
 						{/if}
-					</button>
+
+						<button
+							onclick={handleAddModels}
+							disabled={isAddingModels || selectedModels.length === 0 || !userLoggedIn}
+							class="mt-4 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-700"
+						>
+							{#if isAddingModels}
+								Adding models...
+							{:else}
+								Add {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
+							{/if}
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

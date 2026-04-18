@@ -19,6 +19,8 @@
 	interface Item {
 		id: string;
 		modelName: string;
+		contributorId?: string | null;
+		contributorName?: string | null;
 	}
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
@@ -120,6 +122,25 @@
 						<span class="text-zinc-400">{creator.name || 'Anonymous'}</span>
 					{/if}
 					<span>{formatDateTime(generation.createdAt)}</span>
+					{#if items[selectedModelIndex]?.contributorName && items[selectedModelIndex]?.contributorId !== creator?.id}
+						<span class="flex items-center gap-1 text-emerald-400" title="Model contributor">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-3 w-3"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+								<circle cx="9" cy="7" r="4" />
+								<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+								<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+							</svg>
+							<span class="xs:inline hidden">Model by</span>
+							{items[selectedModelIndex].contributorName}
+						</span>
+					{/if}
 					<span class="flex items-center gap-1">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
