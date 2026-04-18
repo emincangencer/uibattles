@@ -64,24 +64,32 @@ export const generationLikesRelations = relations(generationLikes, ({ one }) => 
 	})
 }));
 
-export const generationItems = sqliteTable('generation_items', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	generationId: text('generation_id')
-		.notNull()
-		.references(() => generations.id, { onDelete: 'cascade' }),
-	userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
-	modelId: text('model_id').notNull(),
-	modelName: text('model_name').notNull(),
-	html: text('html'),
-	createdAt: integer('created_at', { mode: 'timestamp_ms' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	status: text('status').notNull().default('pending'),
-	error: text('error'),
-	startedAt: integer('started_at', { mode: 'timestamp_ms' }),
-	completedAt: integer('completed_at', { mode: 'timestamp_ms' })
-});
+export const generationItems = sqliteTable(
+	'generation_items',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		generationId: text('generation_id')
+			.notNull()
+			.references(() => generations.id, { onDelete: 'cascade' }),
+		userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+		modelId: text('model_id').notNull(),
+		modelName: text('model_name').notNull(),
+		html: text('html'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		status: text('status').notNull().default('pending'),
+		error: text('error'),
+		startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+		completedAt: integer('completed_at', { mode: 'timestamp_ms' })
+	},
+	(table) => {
+		return {
+			idx_generation_items_user_id: index('idx_generation_items_user_id').on(table.userId)
+		};
+	}
+);
 
 export * from './auth.schema';

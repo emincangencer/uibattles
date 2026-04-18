@@ -648,7 +648,7 @@
 						>
 							<p class="mb-3 text-sm text-zinc-300">Sign in to add models to this generation</p>
 							<a
-								href={`/login?redirect=/generation/${generation.id}`}
+								href={resolve(`/login?redirect=/generation/${generation.id}`)}
 								class="inline-block rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600"
 							>
 								Sign In
