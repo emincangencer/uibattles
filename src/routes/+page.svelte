@@ -19,7 +19,6 @@
 		viewCount: number;
 		likesCount: number;
 		preview: Preview | null;
-		userLiked?: boolean;
 	}
 
 	let { data } = $props();
@@ -31,21 +30,18 @@
 	let hasMore = $state(true);
 	let isLoading = $state(false);
 	let searchQuery = $state('');
-	let sortBy = $state<'recent' | 'popular' | 'most_liked'>('recent');
-	let userLoggedIn = $state(false);
+	let sortBy = $state<'recent' | 'popular'>('recent');
 
 	// Initialize from server data on mount
 	$effect(() => {
 		const gens = (data.generations as Generation[]).map((g) => ({
 			...g,
-			viewCount: g.viewCount ?? 0,
-			likesCount: g.likesCount ?? 0
+			viewCount: g.viewCount ?? 0
 		}));
 		if (generationsList.length === 0 && gens.length > 0) {
 			generationsList = gens;
 			cursor = (data as { initialCursor?: string }).initialCursor ?? null;
 			hasMore = (data as { initialHasMore?: boolean }).initialHasMore ?? true;
-			userLoggedIn = !!data.user;
 		}
 	});
 
@@ -80,7 +76,7 @@
 		await resetAndLoad();
 	}
 
-	async function handleSortChange(value: 'recent' | 'popular' | 'most_liked') {
+	async function handleSortChange(value: 'recent' | 'popular') {
 		sortBy = value;
 		await resetAndLoad();
 	}
@@ -191,8 +187,6 @@
 						viewCount={generation.viewCount}
 						likesCount={generation.likesCount}
 						preview={generation.preview}
-						userLiked={generation.userLiked}
-						{userLoggedIn}
 					/>
 				{/each}
 			</div>

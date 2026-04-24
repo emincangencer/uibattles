@@ -1,6 +1,5 @@
 import { integer, sqliteTable, text, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
-import { relations } from 'drizzle-orm';
 
 export const generations = sqliteTable(
 	'generations',
@@ -20,49 +19,14 @@ export const generations = sqliteTable(
 		startedAt: integer('started_at', { mode: 'timestamp_ms' }),
 		completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
 		abortRequested: integer('abort_requested', { mode: 'boolean' }).default(false),
-		viewCount: integer('view_count').default(0).notNull(),
-		likesCount: integer('likes_count').default(0).notNull()
+		viewCount: integer('view_count').default(0).notNull()
 	},
 	(table) => [
 		index('idx_generations_name').on(table.name),
 		index('idx_generations_created_at').on(table.createdAt),
-		index('idx_generations_view_count').on(table.viewCount),
-		index('idx_generations_likes_count').on(table.likesCount)
+		index('idx_generations_view_count').on(table.viewCount)
 	]
 );
-
-export const generationLikes = sqliteTable(
-	'generation_likes',
-	{
-		id: text('id')
-			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
-		generationId: text('generation_id')
-			.notNull()
-			.references(() => generations.id, { onDelete: 'cascade' }),
-		userId: text('user_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
-		createdAt: integer('created_at', { mode: 'timestamp_ms' })
-			.notNull()
-			.$defaultFn(() => new Date())
-	},
-	(table) => [
-		index('generation_likes_user_gen_idx').on(table.userId, table.generationId),
-		uniqueIndex('generation_likes_user_gen_unique_idx').on(table.userId, table.generationId)
-	]
-);
-
-export const generationLikesRelations = relations(generationLikes, ({ one }) => ({
-	generation: one(generations, {
-		fields: [generationLikes.generationId],
-		references: [generations.id]
-	}),
-	user: one(user, {
-		fields: [generationLikes.userId],
-		references: [user.id]
-	})
-}));
 
 export const generationItems = sqliteTable(
 	'generation_items',
@@ -83,13 +47,39 @@ export const generationItems = sqliteTable(
 		status: text('status').notNull().default('pending'),
 		error: text('error'),
 		startedAt: integer('started_at', { mode: 'timestamp_ms' }),
-		completedAt: integer('completed_at', { mode: 'timestamp_ms' })
+		completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+		likesCount: integer('likes_count').default(0).notNull()
 	},
 	(table) => {
 		return {
-			idx_generation_items_user_id: index('idx_generation_items_user_id').on(table.userId)
+			idx_generation_items_user_id: index('idx_generation_items_user_id').on(table.userId),
+			idx_generation_items_likes_count: index('idx_generation_items_likes_count').on(
+				table.likesCount
+			)
 		};
 	}
+);
+
+export const modelGenerationLikes = sqliteTable(
+	'model_generation_likes',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		itemId: text('item_id')
+			.notNull()
+			.references(() => generationItems.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [
+		index('model_generation_likes_user_item_idx').on(table.userId, table.itemId),
+		uniqueIndex('model_generation_likes_user_item_unique_idx').on(table.userId, table.itemId)
+	]
 );
 
 export * from './auth.schema';

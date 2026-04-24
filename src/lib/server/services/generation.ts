@@ -1,7 +1,7 @@
 import { generateText, RetryError, APICallError } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { db } from '$lib/server/db';
-import { generations, generationItems, generationLikes, user } from '$lib/server/db/schema';
+import { generations, generationItems, modelGenerationLikes, user } from '$lib/server/db/schema';
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
 import { parse } from 'parse5';
 
@@ -80,10 +80,9 @@ export interface GenerationCardData {
 	viewCount: number;
 	likesCount: number;
 	preview: { id: string; modelName: string; html: string } | null;
-	userLiked?: boolean;
 }
 
-export type SortOption = 'recent' | 'popular' | 'most_liked';
+export type SortOption = 'recent' | 'popular';
 
 export class GenerationService {
 	async enqueue(params: {
@@ -660,13 +659,12 @@ export class GenerationService {
 		limit: number;
 		search?: string;
 		sort: SortOption;
-		userId?: string;
 	}): Promise<{
 		generations: GenerationCardData[];
 		nextCursor: string | null;
 		hasMore: boolean;
 	}> {
-		const { cursor, limit, search, sort, userId } = params;
+		const { cursor, limit, search, sort } = params;
 
 		const conditions: ReturnType<typeof sql>[] = [];
 
@@ -684,8 +682,7 @@ export class GenerationService {
 			const [cursorGen] = await db
 				.select({
 					createdAt: generations.createdAt,
-					viewCount: generations.viewCount,
-					likesCount: generations.likesCount
+					viewCount: generations.viewCount
 				})
 				.from(generations)
 				.where(eq(generations.id, cursor))
@@ -694,9 +691,6 @@ export class GenerationService {
 				switch (sort) {
 					case 'popular':
 						conditions.push(sql`${generations.viewCount} < ${cursorGen.viewCount ?? 0}`);
-						break;
-					case 'most_liked':
-						conditions.push(sql`${generations.likesCount} < ${cursorGen.likesCount ?? 0}`);
 						break;
 					default:
 						conditions.push(sql`${generations.createdAt} < ${cursorGen.createdAt}`);
@@ -716,8 +710,7 @@ export class GenerationService {
 				id: generations.id,
 				name: generations.name,
 				createdAt: generations.createdAt,
-				viewCount: generations.viewCount,
-				likesCount: generations.likesCount
+				viewCount: generations.viewCount
 			})
 			.from(generations)
 			.where(whereClause);
@@ -726,9 +719,6 @@ export class GenerationService {
 		switch (sort) {
 			case 'popular':
 				orderedQuery = baseQuery.orderBy(desc(generations.viewCount));
-				break;
-			case 'most_liked':
-				orderedQuery = baseQuery.orderBy(desc(generations.likesCount));
 				break;
 			default:
 				orderedQuery = baseQuery.orderBy(desc(generations.createdAt));
@@ -804,23 +794,24 @@ export class GenerationService {
 			countMap.set(row.generationId, row.count);
 		}
 
-		// Batch fetch likes if user is logged in
-		let likeMap = new Map<string, boolean>();
-		if (userId) {
-			const userLikes = await db
-				.select({ generationId: generationLikes.generationId })
-				.from(generationLikes)
-				.where(
-					and(
-						sql`${generationLikes.generationId} IN (${sql.join(
-							generationIds.map((id) => sql`${id}`),
-							sql`, `
-						)})`,
-						eq(generationLikes.userId, userId)
-					)
-				);
+		// Batch fetch likes for all generation items using denormalized likesCount
+		const allLikes = await db
+			.select({
+				generationId: generationItems.generationId,
+				totalLikes: sql<number>`sum(${generationItems.likesCount})`
+			})
+			.from(generationItems)
+			.where(
+				sql`${generationItems.generationId} IN (${sql.join(
+					generationIds.map((id) => sql`${id}`),
+					sql`, `
+				)})`
+			)
+			.groupBy(generationItems.generationId);
 
-			likeMap = new Map(userLikes.map((like) => [like.generationId, true]));
+		const likesCountMap = new Map<string, number>();
+		for (const row of allLikes) {
+			likesCountMap.set(row.generationId, row.totalLikes ?? 0);
 		}
 
 		// Combine all data
@@ -830,9 +821,8 @@ export class GenerationService {
 			createdAt: gen.createdAt,
 			itemCount: countMap.get(gen.id) ?? 0,
 			viewCount: gen.viewCount ?? 0,
-			likesCount: gen.likesCount ?? 0,
-			preview: previewMap.get(gen.id) ?? null,
-			userLiked: likeMap.get(gen.id) ?? false
+			likesCount: likesCountMap.get(gen.id) ?? 0,
+			preview: previewMap.get(gen.id) ?? null
 		}));
 
 		return {
@@ -856,31 +846,41 @@ export class GenerationService {
 		return gen?.viewCount ?? 0;
 	}
 
-	async toggleLike(
-		generationId: string,
+	async toggleModelLike(
+		itemId: string,
 		userId: string
 	): Promise<{ liked: boolean; likesCount: number }> {
+		const [item] = await db
+			.select({ id: generationItems.id })
+			.from(generationItems)
+			.where(eq(generationItems.id, itemId))
+			.limit(1);
+
+		if (!item) {
+			throw new Error('ITEM_NOT_FOUND');
+		}
+
 		return db.transaction(async (tx) => {
 			const existingLikes = await tx
-				.select({ id: generationLikes.id })
-				.from(generationLikes)
+				.select({ id: modelGenerationLikes.id })
+				.from(modelGenerationLikes)
 				.where(
-					and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
+					and(eq(modelGenerationLikes.itemId, itemId), eq(modelGenerationLikes.userId, userId))
 				);
 
 			let liked: boolean;
 
 			if (existingLikes.length > 0) {
 				await tx
-					.delete(generationLikes)
+					.delete(modelGenerationLikes)
 					.where(
-						and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
+						and(eq(modelGenerationLikes.itemId, itemId), eq(modelGenerationLikes.userId, userId))
 					);
 				liked = false;
 			} else {
-				await tx.insert(generationLikes).values({
+				await tx.insert(modelGenerationLikes).values({
 					id: crypto.randomUUID(),
-					generationId,
+					itemId,
 					userId
 				});
 				liked = true;
@@ -888,15 +888,15 @@ export class GenerationService {
 
 			const [likeCount] = await tx
 				.select({ count: sql<number>`count(*)` })
-				.from(generationLikes)
-				.where(eq(generationLikes.generationId, generationId));
+				.from(modelGenerationLikes)
+				.where(eq(modelGenerationLikes.itemId, itemId));
 
 			const nextLikesCount = likeCount?.count ?? 0;
 
 			await tx
-				.update(generations)
+				.update(generationItems)
 				.set({ likesCount: nextLikesCount })
-				.where(eq(generations.id, generationId));
+				.where(eq(generationItems.id, itemId));
 
 			return {
 				liked,
@@ -905,26 +905,34 @@ export class GenerationService {
 		});
 	}
 
-	async getLikeStatus(
-		generationId: string,
+	async getModelLikeStatus(
+		itemId: string,
 		userId: string
 	): Promise<{ liked: boolean; likesCount: number }> {
-		const [existingLike] = await db
-			.select({ id: generationLikes.id })
-			.from(generationLikes)
-			.where(
-				and(eq(generationLikes.generationId, generationId), eq(generationLikes.userId, userId))
-			)
+		const [item] = await db
+			.select({ id: generationItems.id })
+			.from(generationItems)
+			.where(eq(generationItems.id, itemId))
 			.limit(1);
 
-		const [gen] = await db
-			.select({ likesCount: generations.likesCount })
-			.from(generations)
-			.where(eq(generations.id, generationId));
+		if (!item) {
+			throw new Error('ITEM_NOT_FOUND');
+		}
+
+		const [existingLike] = await db
+			.select({ id: modelGenerationLikes.id })
+			.from(modelGenerationLikes)
+			.where(and(eq(modelGenerationLikes.itemId, itemId), eq(modelGenerationLikes.userId, userId)))
+			.limit(1);
+
+		const [itemData] = await db
+			.select({ likesCount: generationItems.likesCount })
+			.from(generationItems)
+			.where(eq(generationItems.id, itemId));
 
 		return {
 			liked: !!existingLike,
-			likesCount: gen?.likesCount ?? 0
+			likesCount: itemData?.likesCount ?? 0
 		};
 	}
 }

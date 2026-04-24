@@ -12,6 +12,11 @@
 		image: string | null;
 	}
 
+	interface ItemLikes {
+		liked: boolean;
+		likesCount: number;
+	}
+
 	interface GenerationItem {
 		id: string;
 		modelId: string;
@@ -21,11 +26,6 @@
 		status?: string;
 		contributorId?: string | null;
 		contributorName?: string | null;
-	}
-
-	interface Model {
-		id: string;
-		name: string;
 	}
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
@@ -46,8 +46,15 @@
 	);
 	let creator = $derived(data.creator as Creator | null);
 	let items = $derived(data.items as GenerationItem[]);
-	let initialUserLiked = $derived((data as { userLiked?: boolean }).userLiked ?? false);
 	let userLoggedIn = $derived(!!data.user);
+	let itemLikesMap = $state<Record<string, ItemLikes>>({});
+
+	$effect(() => {
+		const likes = (data as { itemLikes?: Record<string, ItemLikes> }).itemLikes;
+		if (likes) {
+			itemLikesMap = likes;
+		}
+	});
 
 	let selectedModelIndex = $state(0);
 	let device = $state<DeviceType>('desktop');
@@ -59,13 +66,28 @@
 	let previewFrameWidth = $state(0);
 	let previewIframe: HTMLIFrameElement | null = $state(null);
 
-	let localLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
+	let localItemLikeState = $state<{ isLiked: boolean; likesCount: number } | null>(null);
 
-	let isLiked = $derived(localLikeState !== null ? localLikeState.isLiked : initialUserLiked);
-	let likesCount = $derived(
-		localLikeState !== null ? localLikeState.likesCount : (generation.likesCount ?? 0)
+	// Reset local like state when switching models
+	$effect(() => {
+		// Track dependency on selectedModelIndex
+		void selectedModelIndex;
+		localItemLikeState = null;
+	});
+
+	let currentItem = $derived(items[selectedModelIndex] || null);
+	let currentItemLikes = $derived(
+		itemLikesMap[currentItem?.id ?? ''] ?? { liked: false, likesCount: 0 }
+	);
+	let isLiked = $derived(
+		localItemLikeState !== null ? localItemLikeState.isLiked : currentItemLikes.liked
+	);
+	let itemLikesCount = $derived(
+		localItemLikeState !== null ? localItemLikeState.likesCount : currentItemLikes.likesCount
 	);
 	let isLiking = $state(false);
+
+	let totalLikes = $derived(Object.values(itemLikesMap).reduce((sum, v) => sum + v.likesCount, 0));
 
 	let selectedModels = $state<string[]>([]);
 	let apiKey = $state('');
@@ -96,15 +118,11 @@
 		}
 	});
 
-	let models = $derived(data.models as Model[]);
+	let models = $derived(data.models as { id: string; name: string }[]);
 
 	let polledItems = $derived.by(() => {
-		if (polledItemData.length > 0) {
-			return polledItemData;
-		}
 		return items;
 	});
-	let polledItemData = $state<GenerationItem[]>([]);
 	let completedModelIds = $derived(
 		polledItems.filter((item) => item.status === 'completed').map((item) => item.modelId)
 	);
@@ -140,7 +158,6 @@
 	);
 	let standalonePreviewHref = $derived.by(() => {
 		if (!currentItem) return '#';
-
 		return resolve('/preview/[itemId]', { itemId: currentItem.id });
 	});
 
@@ -154,29 +171,32 @@
 	});
 
 	async function handleLike() {
-		if (!userLoggedIn || isLiking) return;
+		if (!userLoggedIn || isLiking || !currentItem) return;
 		isLiking = true;
-		const previousState = localLikeState;
+		const previousState = localItemLikeState;
 
-		// Optimistic update
-		localLikeState = {
+		localItemLikeState = {
 			isLiked: !isLiked,
-			likesCount: likesCount + (isLiked ? -1 : 1)
+			likesCount: itemLikesCount + (isLiked ? -1 : 1)
 		};
 
 		try {
-			const res = await fetch(`/api/generations/${generation.id}/like`, { method: 'POST' });
+			const res = await fetch(`/api/generation-items/${currentItem.id}/like`, { method: 'POST' });
 			const result = (await res.json()) as { success: boolean; liked: boolean; likesCount: number };
 			if (result.success) {
-				localLikeState = {
+				localItemLikeState = {
 					isLiked: result.liked,
 					likesCount: result.likesCount
 				};
+				itemLikesMap = {
+					...itemLikesMap,
+					[currentItem.id]: { liked: result.liked, likesCount: result.likesCount }
+				};
 			} else {
-				localLikeState = previousState;
+				localItemLikeState = previousState;
 			}
 		} catch {
-			localLikeState = previousState;
+			localItemLikeState = previousState;
 		} finally {
 			isLiking = false;
 		}
@@ -221,7 +241,6 @@
 		);
 	}
 
-	let currentItem = $derived(polledItems[selectedModelIndex] || null);
 	let canOpenStandalonePreview = $derived(
 		!!currentItem && currentItem.status === 'completed' && currentItem.html.trim().length > 0
 	);
@@ -307,17 +326,6 @@
 					}>;
 				} = await response.json();
 
-				polledItemData = status.items.map((item) => ({
-					id: item.id,
-					modelId: item.modelId,
-					modelName: item.modelName,
-					html: item.html || '',
-					createdAt: new Date(),
-					status: item.status,
-					contributorId: item.userId,
-					contributorName: item.contributorName
-				}));
-
 				const allItemsComplete = status.items.every(
 					(item) =>
 						item.status === 'completed' || item.status === 'error' || item.status === 'aborted'
@@ -325,6 +333,7 @@
 
 				if (status.status === 'completed' || status.status === 'aborted' || allItemsComplete) {
 					clearPollInterval();
+					location.reload();
 				}
 			} catch {
 				clearPollInterval();
@@ -379,11 +388,12 @@
 	<GenerationHeader
 		{generation}
 		{creator}
-		{likesCount}
+		{totalLikes}
 		{isLiked}
 		{userLoggedIn}
 		{isLiking}
 		items={polledItems}
+		{itemLikesCount}
 		bind:selectedModelIndex
 		bind:device
 		onOpenCodeModal={() => (showCodeModal = true)}
@@ -391,7 +401,6 @@
 		onLike={handleLike}
 	/>
 
-	<!-- Prompt Display -->
 	<div class="border-b border-zinc-800 bg-zinc-900/30 px-2 py-2 sm:px-4 sm:py-3">
 		<p class="max-w-4xl text-xs text-zinc-400 sm:text-sm">
 			<span class="text-zinc-500">Prompt:</span>
@@ -409,12 +418,10 @@
 		</p>
 	</div>
 
-	<!-- Preview Area -->
 	{#if !currentItem}
 		<div class="flex h-96 items-center justify-center text-zinc-500">No generation items found</div>
 	{:else}
 		<div class="p-2 sm:p-4">
-			<!-- Single Preview based on device -->
 			<div class="mx-auto flex flex-col items-center">
 				<div
 					class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-zinc-700 bg-zinc-900 px-2 py-1 sm:px-4 sm:py-2"
@@ -477,7 +484,7 @@
 								stroke-width="2"
 							>
 								<path d="M14 3h7v7" />
-								<path d="M10 14 21 3" />
+								<path d="M10 14L21 3" />
 								<path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" />
 							</svg>
 						</button>
@@ -515,7 +522,6 @@
 		</div>
 	{/if}
 
-	<!-- Prompt Modal -->
 	{#if showPromptModal}
 		<div
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -555,7 +561,6 @@
 		</div>
 	{/if}
 
-	<!-- Code Modal -->
 	{#if showCodeModal && currentItem}
 		<div
 			class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 py-8"
@@ -607,7 +612,6 @@
 		</div>
 	{/if}
 
-	<!-- Add Model Modal -->
 	{#if showAddModelModal}
 		<div
 			class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 py-8"

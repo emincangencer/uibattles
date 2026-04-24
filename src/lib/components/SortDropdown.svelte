@@ -1,15 +1,14 @@
 <script lang="ts">
 	interface Props {
-		value?: 'recent' | 'popular' | 'most_liked';
-		onchange?: (value: 'recent' | 'popular' | 'most_liked') => void;
+		value?: 'recent' | 'popular';
+		onchange?: (value: 'recent' | 'popular') => void;
 	}
 
 	let { value = $bindable('recent'), onchange }: Props = $props();
 
 	const options = [
 		{ value: 'recent', label: 'Most Recent' },
-		{ value: 'popular', label: 'Most Viewed' },
-		{ value: 'most_liked', label: 'Most Liked' }
+		{ value: 'popular', label: 'Most Viewed' }
 	] as const;
 
 	function handleChange(e: Event) {

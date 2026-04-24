@@ -28,11 +28,12 @@
 	let {
 		generation,
 		creator,
-		likesCount,
+		totalLikes,
 		isLiked,
 		userLoggedIn,
 		isLiking,
 		items,
+		itemLikesCount,
 		selectedModelIndex = $bindable(),
 		device = $bindable(),
 		onOpenCodeModal,
@@ -41,11 +42,12 @@
 	} = $props<{
 		generation: Generation;
 		creator: Creator | null;
-		likesCount: number;
+		totalLikes: number;
 		isLiked: boolean;
 		userLoggedIn: boolean;
 		isLiking: boolean;
 		items: Item[];
+		itemLikesCount: number;
 		selectedModelIndex: number;
 		device: DeviceType;
 		onOpenCodeModal: () => void;
@@ -155,7 +157,7 @@
 						</svg>
 						{formatCount(generation.viewCount ?? 0)}
 					</span>
-					<span class="flex items-center gap-1">
+					<span class="flex items-center gap-1" title="Total likes across all model generations">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-3 w-3"
@@ -168,7 +170,7 @@
 								d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
 							/>
 						</svg>
-						{formatCount(likesCount)}
+						{formatCount(totalLikes)}
 					</span>
 				</p>
 			</div>
@@ -330,7 +332,7 @@
 						d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
 					/>
 				</svg>
-				<span class="hidden sm:inline">{likesCount}</span>
+				<span class="hidden sm:inline">{itemLikesCount}</span>
 			</button>
 
 			<!-- Add Model Button -->

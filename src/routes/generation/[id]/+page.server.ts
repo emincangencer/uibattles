@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { generations, generationItems, user, generationLikes } from '$lib/server/db/schema';
-import { eq, asc, and } from 'drizzle-orm';
+import { generations, generationItems, user, modelGenerationLikes } from '$lib/server/db/schema';
+import { eq, asc, and, sql } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch }) => {
@@ -21,8 +21,7 @@ export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch 
 			prompt: generations.prompt,
 			createdAt: generations.createdAt,
 			userId: generations.userId,
-			viewCount: generations.viewCount,
-			likesCount: generations.likesCount
+			viewCount: generations.viewCount
 		})
 		.from(generations)
 		.where(eq(generations.id, params.id))
@@ -54,7 +53,8 @@ export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch 
 			error: generationItems.error,
 			createdAt: generationItems.createdAt,
 			contributorId: generationItems.userId,
-			contributorName: user.name
+			contributorName: user.name,
+			likesCount: generationItems.likesCount
 		})
 		.from(generationItems)
 		.leftJoin(user, eq(generationItems.userId, user.id))
@@ -64,28 +64,62 @@ export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch 
 	const allItems = items.filter((item) => item.status === 'completed' && item.html);
 	const failedItems = items.filter((item) => item.status === 'error' || item.status === 'aborted');
 
-	let userLiked = false;
+	// Batch fetch all like counts in a single query
+	const itemIds = allItems.map((item) => item.id);
+	const likeCountsQuery = db
+		.select({ itemId: modelGenerationLikes.itemId, count: sql<number>`count(*)`.as('like_count') })
+		.from(modelGenerationLikes)
+		.where(
+			sql`${modelGenerationLikes.itemId} IN (${sql.join(
+				itemIds.map((id) => sql`${id}`),
+				sql`, `
+			)})`
+		)
+		.groupBy(modelGenerationLikes.itemId);
+
+	const likeCounts = await likeCountsQuery;
+	const likeCountMap = new Map(likeCounts.map((r) => [r.itemId, r.count]));
+
+	// Batch fetch user's likes if logged in
+	let userLikesMap = new Set<string>();
 	if (locals.user) {
-		const [like] = await db
-			.select({ id: generationLikes.id })
-			.from(generationLikes)
+		const userLikes = await db
+			.select({ itemId: modelGenerationLikes.itemId })
+			.from(modelGenerationLikes)
 			.where(
-				and(eq(generationLikes.generationId, params.id), eq(generationLikes.userId, locals.user.id))
-			)
-			.limit(1);
-		userLiked = !!like;
+				and(
+					sql`${modelGenerationLikes.itemId} IN (${sql.join(
+						itemIds.map((id) => sql`${id}`),
+						sql`, `
+					)})`,
+					eq(modelGenerationLikes.userId, locals.user.id)
+				)
+			);
+		userLikesMap = new Set(userLikes.map((r) => r.itemId));
+	}
+
+	let totalLikesCount = 0;
+	const itemLikesMap: Record<string, { liked: boolean; likesCount: number }> = {};
+	for (const item of allItems) {
+		const itemLikes = likeCountMap.get(item.id) ?? 0;
+		totalLikesCount += itemLikes;
+		itemLikesMap[item.id] = {
+			liked: userLikesMap.has(item.id),
+			likesCount: itemLikes
+		};
 	}
 
 	return {
 		generation: {
 			...gen,
 			viewCount: gen.viewCount ?? 0,
-			likesCount: gen.likesCount ?? 0
+			likesCount: totalLikesCount
 		},
 		creator: creator[0] || null,
 		items: allItems,
 		failedItems,
-		userLiked,
+		itemLikes: itemLikesMap,
+		currentItemId: allItems[0]?.id,
 		models
 	};
 };
