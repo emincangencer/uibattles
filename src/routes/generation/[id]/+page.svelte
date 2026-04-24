@@ -395,8 +395,6 @@
 		items={polledItems}
 		{itemLikesCount}
 		bind:selectedModelIndex
-		bind:device
-		onOpenCodeModal={() => (showCodeModal = true)}
 		onOpenAddModelModal={() => (showAddModelModal = true)}
 		onLike={handleLike}
 	/>
@@ -426,9 +424,73 @@
 				<div
 					class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-zinc-700 bg-zinc-900 px-2 py-1 sm:px-4 sm:py-2"
 				>
-					<span class="text-xs font-medium text-zinc-400 capitalize sm:text-sm">{device}</span>
 					<div class="flex items-center gap-2">
+						<!-- Device Toggle -->
+						<div class="flex items-center gap-0.5 rounded-lg bg-zinc-800 px-0.5 py-0.5">
+							<button
+								onclick={() => (device = 'desktop')}
+								class="rounded p-1 transition-colors {device === 'desktop'
+									? 'bg-zinc-700 text-zinc-100'
+									: 'text-zinc-400 hover:text-zinc-200'}"
+								aria-label="Desktop view"
+								title="Desktop view (1440px)"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-4 w-4"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<rect x="2" y="3" width="20" height="14" rx="2" />
+									<path d="M8 21h8M12 17v4" />
+								</svg>
+							</button>
+							<button
+								onclick={() => (device = 'tablet')}
+								class="rounded p-1 transition-colors {device === 'tablet'
+									? 'bg-zinc-700 text-zinc-100'
+									: 'text-zinc-400 hover:text-zinc-200'}"
+								aria-label="Tablet view"
+								title="Tablet view (768px)"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-4 w-4"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<rect x="4" y="2" width="16" height="20" rx="2" />
+									<path d="M12 18h.01" />
+								</svg>
+							</button>
+							<button
+								onclick={() => (device = 'mobile')}
+								class="rounded p-1 transition-colors {device === 'mobile'
+									? 'bg-zinc-700 text-zinc-100'
+									: 'text-zinc-400 hover:text-zinc-200'}"
+								aria-label="Mobile view"
+								title="Mobile view (375px)"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-4 w-4"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<rect x="5" y="2" width="14" height="20" rx="2" />
+									<path d="M12 18h.01" />
+								</svg>
+							</button>
+						</div>
 						<span class="text-xs text-zinc-500 sm:text-sm">{previewViewportWidth}px</span>
+					</div>
+					<div class="flex items-center gap-2">
 						<button
 							type="button"
 							onclick={() => {
@@ -486,6 +548,26 @@
 								<path d="M14 3h7v7" />
 								<path d="M10 14L21 3" />
 								<path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" />
+							</svg>
+						</button>
+						<button
+							type="button"
+							onclick={() => (showCodeModal = true)}
+							class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+							aria-label="View code"
+							title="View code"
+							disabled={!currentItem}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path d="M16 18l6-6-6-6" />
+								<path d="M8 6l-6 6 6 6" />
 							</svg>
 						</button>
 					</div>
