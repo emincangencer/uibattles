@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { generations, generationItems, user, modelGenerationLikes } from '$lib/server/db/schema';
-import { eq, asc, and, sql } from 'drizzle-orm';
+import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch }) => {
@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ params, locals, fetch: globalFetch 
 		.from(generationItems)
 		.leftJoin(user, eq(generationItems.userId, user.id))
 		.where(eq(generationItems.generationId, params.id))
-		.orderBy(asc(generationItems.createdAt));
+		.orderBy(desc(generationItems.likesCount), asc(generationItems.createdAt));
 
 	const allItems = items.filter((item) => item.status === 'completed' && item.html);
 	const failedItems = items.filter((item) => item.status === 'error' || item.status === 'aborted');

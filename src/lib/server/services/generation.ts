@@ -746,7 +746,8 @@ export class GenerationService {
 				id: generationItems.id,
 				generationId: generationItems.generationId,
 				modelName: generationItems.modelName,
-				html: generationItems.html
+				html: generationItems.html,
+				likesCount: generationItems.likesCount
 			})
 			.from(generationItems)
 			.where(
@@ -757,9 +758,10 @@ export class GenerationService {
 					)})`,
 					sql`${generationItems.status} = 'completed'`
 				)
-			);
+			)
+			.orderBy(desc(generationItems.likesCount), asc(generationItems.createdAt));
 
-		// Get first preview for each generation
+		// Get most liked preview for each generation
 		const previewMap = new Map<string, { id: string; modelName: string; html: string }>();
 		for (const preview of allPreviews) {
 			if (!previewMap.has(preview.generationId)) {
