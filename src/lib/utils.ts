@@ -36,7 +36,7 @@ export const PREVIEW_CSP = [
 	'media-src data: blob:',
 	'font-src https://fonts.gstatic.com data:',
 	"style-src 'unsafe-inline' https://fonts.googleapis.com",
-	"script-src 'unsafe-inline' https://cdn.jsdelivr.net"
+	"script-src 'unsafe-inline' https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js"
 ].join('; ');
 
 const CSP_META_TAG = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`;
@@ -56,7 +56,7 @@ const STANDALONE_PREVIEW_CSP = [
 	'media-src data: blob:',
 	'font-src https://fonts.gstatic.com data:',
 	"style-src 'unsafe-inline' https://fonts.googleapis.com",
-	"script-src 'unsafe-inline' https://cdn.jsdelivr.net"
+	"script-src 'unsafe-inline' https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js"
 ].join('; ');
 
 interface PreviewViewport {

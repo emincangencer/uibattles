@@ -8,7 +8,10 @@ const config = {
 			mode: 'auto',
 			directives: {
 				'default-src': ['self'],
-				'script-src': ['self', 'https://cdn.jsdelivr.net'],
+				'script-src': [
+					'self',
+					'https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js'
+				],
 				'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
 				'font-src': ['self', 'https://fonts.gstatic.com'],
 				'img-src': ['self', 'data:', 'blob:'],
