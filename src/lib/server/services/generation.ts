@@ -36,11 +36,15 @@ You may use:
 - HTML5 elements, CSS3 (flexbox, grid, animations, transitions)
 - JavaScript (vanilla, no frameworks)
 - Google Fonts via @import or <link>
+- Iconify via CDN: <script src="https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js"></script>
+- Then use <iconify-icon icon="[PREFIX]:[ICON_NAME]"></iconify-icon> (e.g., <iconify-icon icon="mdi:home"></iconify-icon>)
 - Inline SVG images (as data URIs or inline)
 
+Iconify icon sets include: mdi (Material Design), ri (RemixIcon), lucide, heroicons, twemoji, line-md, feather, etc.
+
 You must NOT:
-- Use external CSS/JS libraries (no Tailwind CDN, React, Vue, etc.)
-- Reference external resources except Google Fonts
+- Use external CSS/JS libraries other than Iconify and Google Fonts
+- Reference external resources except Google Fonts and Iconify CDN
 - Make network requests
 - Use data: URLs except for inline SVGs
 - Generate incomplete or placeholder content
