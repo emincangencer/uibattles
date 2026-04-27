@@ -48,6 +48,7 @@ You must NOT:
 - Make network requests
 - Use data: URLs except for inline SVGs
 - Generate incomplete or placeholder content
+- Use @iconify/iconify CSS version (e.g., iconify@2.x.x/dist/iconify.min.css) - only use iconify-icon@3 JavaScript web component
 
 Output ONLY the raw HTML code, no explanations or markdown.`;
 

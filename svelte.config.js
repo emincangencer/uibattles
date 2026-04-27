@@ -8,8 +8,15 @@ const config = {
 			mode: 'auto',
 			directives: {
 				'default-src': ['self'],
+				'connect-src': [
+					'self',
+					'https://api.iconify.design',
+					'https://api.unisvg.com',
+					'https://api.simplesvg.com'
+				],
 				'script-src': [
 					'self',
+					'unsafe-inline',
 					'https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js'
 				],
 				'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
