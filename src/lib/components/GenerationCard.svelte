@@ -44,9 +44,9 @@
 	</div>
 
 	<div class="p-4">
-		<h3 class="truncate font-semibold text-zinc-100 transition-colors group-hover:text-emerald-400">
+		<h2 class="truncate font-semibold text-zinc-100 transition-colors group-hover:text-emerald-400">
 			{name}
-		</h3>
+		</h2>
 		<div class="mt-2 flex items-center justify-between text-sm text-zinc-500">
 			<span>{itemCount} model{itemCount !== 1 ? 's' : ''}</span>
 			<span>{formatDate(createdAt)}</span>
