@@ -50,13 +50,24 @@
 	<span class="mb-2 block text-sm font-medium text-muted">
 		Models ({selectedModels.length} selected)
 	</span>
-	<div class="mb-2">
+	<div class="relative mb-2">
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+		>
+			<circle cx="11" cy="11" r="8" />
+			<path d="m21 21-4.3-4.3" />
+		</svg>
 		<input
 			type="text"
 			bind:value={search}
 			placeholder="Search models..."
 			{disabled}
-			class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
+			class="w-full rounded-lg border border-border bg-surface px-3 py-2 pl-9 text-sm text-foreground placeholder-muted-foreground focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
 		/>
 	</div>
 	<div class="{maxHeight} space-y-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
