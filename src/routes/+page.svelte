@@ -83,9 +83,6 @@
 
 	async function resetAndLoad() {
 		isLoading = true;
-		generationsList = [];
-		cursor = null;
-		hasMore = true;
 
 		try {
 			const queryParts = [`limit=20`, `sort=${sortBy}`];
