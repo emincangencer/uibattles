@@ -30,9 +30,11 @@
 	}
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
+	type PreviewModeType = 'inner-scroll' | 'scaled';
 	const PREVIEW_RESIZE_MESSAGE_TYPE = 'uibattles-preview-resize';
 	const PREVIEW_HOST_SCROLL_MESSAGE_TYPE = 'uibattles-preview-host-scroll';
 	const PREVIEW_FALLBACK_HEIGHT = 500;
+	const PREVIEW_MODE_STORAGE_KEY = 'uibattles_preview_mode';
 
 	let { data } = $props();
 	let generation = $derived(
@@ -59,11 +61,12 @@
 
 	let selectedModelIndex = $state(0);
 	let device = $state<DeviceType>('desktop');
+	let previewMode = $state<PreviewModeType>('scaled');
 	let showPromptModal = $state(false);
 	let showCodeModal = $state(false);
 	let showAddModelModal = $state(false);
 	let codeCopied = $state(false);
-	let previewHeight = $state(PREVIEW_FALLBACK_HEIGHT);
+	let scaledPreviewHeightValue = $state(PREVIEW_FALLBACK_HEIGHT);
 	let previewFrameWidth = $state(0);
 	let previewIframe: HTMLIFrameElement | null = $state(null);
 
@@ -109,6 +112,23 @@
 
 	loadApiKey();
 
+	function loadPreviewMode() {
+		if (typeof window !== 'undefined') {
+			const stored = localStorage.getItem(PREVIEW_MODE_STORAGE_KEY);
+			if (stored === 'inner-scroll' || stored === 'scaled') {
+				previewMode = stored;
+			}
+		}
+	}
+
+	loadPreviewMode();
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, previewMode);
+		}
+	});
+
 	$effect(() => {
 		if (typeof window !== 'undefined') {
 			if (rememberMe && apiKey) {
@@ -150,11 +170,18 @@
 	});
 
 	let previewScale = $derived.by(() => {
+		if (previewMode === 'inner-scroll') return 1;
 		if (previewFrameWidth <= 0) return 1;
 		return Math.min(1, previewFrameWidth / previewViewportWidth);
 	});
 
-	let scaledPreviewHeight = $derived(
+	let previewHeight = $derived(
+		previewMode === 'inner-scroll' ? deviceHeights[device] : scaledPreviewHeightValue
+	);
+
+	let innerScrollContainerHeight = '80vh';
+
+	let scaledContainerHeight = $derived(
 		Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(previewHeight * previewScale))
 	);
 	let standalonePreviewHref = $derived.by(() => {
@@ -218,7 +245,7 @@
 		if (!currentItem || data.previewId !== currentItem.id) return;
 		if (typeof data.height !== 'number' || !Number.isFinite(data.height)) return;
 
-		previewHeight = Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(data.height));
+		scaledPreviewHeightValue = Math.max(PREVIEW_FALLBACK_HEIGHT, Math.ceil(data.height));
 	}
 
 	function syncPreviewScrollState() {
@@ -354,9 +381,11 @@
 	});
 
 	$effect(() => {
-		const previewKey = currentItem ? `${currentItem.id}:${device}` : `empty:${device}`;
-		if (previewKey.length > 0) {
-			previewHeight = PREVIEW_FALLBACK_HEIGHT;
+		const previewKey = currentItem
+			? `${currentItem.id}:${device}:${previewMode}`
+			: `empty:${device}:${previewMode}`;
+		if (previewKey.length > 0 && previewMode === 'scaled') {
+			scaledPreviewHeightValue = PREVIEW_FALLBACK_HEIGHT;
 		}
 	});
 
@@ -424,41 +453,69 @@
 			<div class="mx-auto flex flex-col items-center">
 				<PreviewToolbar
 					bind:device
+					bind:previewMode
 					{previewViewportWidth}
 					{previewIframe}
 					{currentItem}
 					{canOpenStandalonePreview}
 					{standalonePreviewHref}
 					onDeviceChange={(d) => (device = d)}
+					onPreviewModeChange={(m) => (previewMode = m)}
 					onOpenCodeModal={() => (showCodeModal = true)}
 				/>
 				<div
 					bind:clientWidth={previewFrameWidth}
 					class="w-full overflow-hidden rounded-b-lg border border-zinc-700"
 				>
-					<div
-						class="mx-auto origin-top-left overflow-hidden"
-						style="width: {previewViewportWidth * previewScale}px; height: {scaledPreviewHeight}px;"
-					>
-						<iframe
-							bind:this={previewIframe}
-							srcdoc={createSandboxedPreviewDocument(currentItem.html, {
-								resizeToContent: true,
-								syncHostScroll: true,
-								previewId: currentItem.id,
-								viewport: {
-									width: previewViewportWidth,
-									height: deviceHeights[device]
-								}
-							})}
-							onload={syncPreviewScrollState}
-							title="{device} preview"
-							class="block"
-							style="width: {previewViewportWidth}px; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px; transform: scale({previewScale}); transform-origin: top left;"
-							sandbox="allow-scripts"
-							scrolling="no"
-						></iframe>
-					</div>
+					{#if previewMode === 'inner-scroll'}
+						<div
+							class="mx-auto overflow-auto"
+							style="width: {previewViewportWidth}px; height: {innerScrollContainerHeight};"
+						>
+							<iframe
+								bind:this={previewIframe}
+								srcdoc={createSandboxedPreviewDocument(currentItem.html, {
+									resizeToContent: false,
+									syncHostScroll: false,
+									previewId: currentItem.id,
+									viewport: {
+										width: previewViewportWidth,
+										height: deviceHeights[device]
+									}
+								})}
+								title="{device} preview"
+								class="block"
+								style="width: {previewViewportWidth}px; height: 100%;"
+								sandbox="allow-scripts"
+								scrolling="auto"
+							></iframe>
+						</div>
+					{:else}
+						<div
+							class="mx-auto origin-top-left overflow-hidden"
+							style="width: {previewViewportWidth *
+								previewScale}px; height: {scaledContainerHeight}px;"
+						>
+							<iframe
+								bind:this={previewIframe}
+								srcdoc={createSandboxedPreviewDocument(currentItem.html, {
+									resizeToContent: true,
+									syncHostScroll: true,
+									previewId: currentItem.id,
+									viewport: {
+										width: previewViewportWidth,
+										height: deviceHeights[device]
+									}
+								})}
+								onload={syncPreviewScrollState}
+								title="{device} preview"
+								class="block"
+								style="width: {previewViewportWidth}px; min-height: {PREVIEW_FALLBACK_HEIGHT}px; height: {previewHeight}px; transform: scale({previewScale}); transform-origin: top left;"
+								sandbox="allow-scripts"
+								scrolling="no"
+							></iframe>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>

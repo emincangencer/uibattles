@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 
 	type DeviceType = 'desktop' | 'tablet' | 'mobile';
+	type PreviewModeType = 'inner-scroll' | 'scaled';
 
 	interface Props {
 		device: DeviceType;
@@ -11,7 +12,9 @@
 		currentItem: { id: string; html: string; status?: string } | null;
 		canOpenStandalonePreview: boolean;
 		standalonePreviewHref: string;
+		previewMode: PreviewModeType;
 		onDeviceChange: (device: DeviceType) => void;
+		onPreviewModeChange: (mode: PreviewModeType) => void;
 		onOpenCodeModal: () => void;
 	}
 
@@ -22,7 +25,9 @@
 		currentItem,
 		canOpenStandalonePreview,
 		standalonePreviewHref,
+		previewMode = $bindable(),
 		onDeviceChange,
+		onPreviewModeChange,
 		onOpenCodeModal
 	}: Props = $props();
 
@@ -152,6 +157,43 @@
 		<span class="text-xs text-zinc-500 sm:text-sm">{previewViewportWidth}px</span>
 	</div>
 	<div class="flex items-center gap-2">
+		<!-- Preview Mode Toggle -->
+		<button
+			type="button"
+			onclick={() =>
+				onPreviewModeChange(previewMode === 'inner-scroll' ? 'scaled' : 'inner-scroll')}
+			class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+			aria-label="Toggle preview mode"
+			title={previewMode === 'inner-scroll'
+				? 'Scaled view - scrolls with page'
+				: 'Inner scroll - scrolls inside preview'}
+		>
+			{#if previewMode === 'inner-scroll'}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="h-4 w-4"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<rect x="3" y="3" width="18" height="18" rx="2" />
+					<path d="M3 9h18M9 21V9" />
+				</svg>
+			{:else}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="h-4 w-4"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<rect x="2" y="3" width="20" height="18" rx="2" />
+					<path d="M8 21h8M12 17v4" />
+				</svg>
+			{/if}
+		</button>
 		<button
 			type="button"
 			onclick={reloadPreview}
