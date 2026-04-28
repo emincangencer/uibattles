@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Checkbox from './ui/Checkbox.svelte';
+
 	interface Model {
 		id: string;
 		name: string;
@@ -73,12 +75,7 @@
 						? 'bg-warning/10 text-warning hover:bg-warning/20'
 						: 'text-muted hover:bg-surface-elevated'}"
 			>
-				<input
-					type="checkbox"
-					checked={selectedModels.includes(model.id)}
-					disabled={isExcluded || disabled}
-					class="h-4 w-4 rounded border-border bg-surface-elevated text-primary focus:ring-primary focus:ring-offset-0 disabled:opacity-50"
-				/>
+				<Checkbox checked={selectedModels.includes(model.id)} disabled={isExcluded || disabled} />
 				<span class="text-sm">
 					{model.name}
 					{#if isRetryable}

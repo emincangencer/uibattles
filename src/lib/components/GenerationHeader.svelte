@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { formatCount, formatDateTime } from '$lib/utils';
+	import Button from './ui/Button.svelte';
 
 	interface Creator {
 		id: string;
@@ -151,11 +152,7 @@
 				<div
 					class="flex items-center gap-1 rounded-lg bg-surface-elevated px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5"
 				>
-					<button
-						onclick={prevModel}
-						class="rounded p-1 transition-colors hover:bg-border"
-						aria-label="Previous model"
-					>
+					<Button variant="ghost" size="sm" onclick={prevModel} aria-label="Previous model">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-4 w-4"
@@ -166,17 +163,13 @@
 						>
 							<path d="M15 18l-6-6 6-6" />
 						</svg>
-					</button>
+					</Button>
 					<span
 						class="min-w-[40px] text-center text-xs text-muted-foreground sm:min-w-[60px] sm:text-sm"
 					>
 						{items.length > 0 ? selectedModelIndex + 1 : 0} / {items.length}
 					</span>
-					<button
-						onclick={nextModel}
-						class="rounded p-1 transition-colors hover:bg-border"
-						aria-label="Next model"
-					>
+					<Button variant="ghost" size="sm" onclick={nextModel} aria-label="Next model">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-4 w-4"
@@ -187,7 +180,7 @@
 						>
 							<path d="M9 18l6-6-6-6" />
 						</svg>
-					</button>
+					</Button>
 				</div>
 			{/if}
 
@@ -205,11 +198,11 @@
 			{/if}
 
 			<!-- Like Button -->
-			<button
+			<Button
+				variant={isLiked ? 'destructive' : 'secondary'}
+				size="sm"
 				onclick={onLike}
 				disabled={!userLoggedIn || isLiking}
-				class="flex items-center gap-1 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-xs whitespace-nowrap transition-colors hover:bg-border disabled:opacity-50 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm
-					{isLiked ? 'border-destructive/50 text-destructive' : 'text-muted'}"
 				title={userLoggedIn ? (isLiked ? 'Unlike' : 'Like') : 'Sign in to like'}
 			>
 				<svg
@@ -225,13 +218,10 @@
 					/>
 				</svg>
 				<span class="hidden sm:inline">{itemLikesCount}</span>
-			</button>
+			</Button>
 
 			<!-- Add Model Button -->
-			<button
-				onclick={onOpenAddModelModal}
-				class="flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-xs font-medium whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm"
-			>
+			<Button variant="primary" size="sm" onclick={onOpenAddModelModal}>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					class="h-4 w-4"
@@ -243,7 +233,7 @@
 					<path d="M12 5v14M5 12h14" />
 				</svg>
 				<span>Add Model</span>
-			</button>
+			</Button>
 		</div>
 	</div>
 </header>
