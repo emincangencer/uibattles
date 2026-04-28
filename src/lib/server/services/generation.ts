@@ -48,6 +48,7 @@ You must NOT:
 - Use data: URLs except for inline SVGs
 - Generate incomplete or placeholder content
 - Use @iconify/iconify CSS version (e.g., iconify@2.x.x/dist/iconify.min.css) - only use iconify-icon@3 JavaScript web component
+- Wrap output in markdown code blocks (no \`\`\`html or \`\`\` fences)
 
 Output ONLY the raw HTML code, no explanations or markdown.`;
 
@@ -229,9 +230,9 @@ export class GenerationService {
 			let html = result.text;
 
 			html = html
-				.replace(/^```html\s*/, '')
-				.replace(/^```\s*$/, '')
-				.replace(/```\s*$/, '')
+				.replace(/^```html\s*[\n\r]?/, '')
+				.replace(/^```\s*[\n\r]?/, '')
+				.replace(/[\n\r]?```\s*$/, '')
 				.trim();
 
 			if (!isValidHtml(html)) {
