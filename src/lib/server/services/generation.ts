@@ -5,7 +5,6 @@ import { generations, generationItems, modelGenerationLikes, user } from '$lib/s
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
 import { parse } from 'parse5';
 
-const MAX_CONCURRENT = 3;
 const MODEL_TIMEOUT_MS = 300_000;
 
 function isValidHtml(html: string): boolean {
@@ -161,8 +160,7 @@ export class GenerationService {
 				break;
 			}
 
-			const chunk = pendingItems.slice(0, MAX_CONCURRENT);
-			await Promise.all(chunk.map((item) => this.processModelWithTimeout(item, openrouter)));
+			await Promise.all(pendingItems.map((item) => this.processModelWithTimeout(item, openrouter)));
 		}
 
 		const finalItems = await db
