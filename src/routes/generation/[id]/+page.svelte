@@ -429,14 +429,14 @@
 		onLike={handleLike}
 	/>
 
-	<div class="border-b border-zinc-800 bg-zinc-900/30 px-2 py-2 sm:px-4 sm:py-3">
-		<p class="max-w-4xl text-xs text-zinc-400 sm:text-sm">
-			<span class="text-zinc-500">Prompt:</span>
+	<div class="border-b border-border bg-surface/30 px-2 py-2 sm:px-4 sm:py-3">
+		<p class="max-w-4xl text-xs text-muted-foreground sm:text-sm">
+			<span class="text-muted-foreground">Prompt:</span>
 			{#if generation.prompt.length > 100}
 				<span class="line-clamp-2">{generation.prompt.slice(0, 100)}</span>
 				<button
 					onclick={() => (showPromptModal = true)}
-					class="ml-1 whitespace-nowrap text-emerald-400 hover:text-emerald-300"
+					class="ml-1 whitespace-nowrap text-primary hover:text-primary-hover"
 				>
 					Read more
 				</button>
@@ -447,7 +447,9 @@
 	</div>
 
 	{#if !currentItem}
-		<div class="flex h-96 items-center justify-center text-zinc-500">No generation items found</div>
+		<div class="flex h-96 items-center justify-center text-muted-foreground">
+			No generation items found
+		</div>
 	{:else}
 		<div class="p-2 sm:p-4">
 			<div class="mx-auto flex flex-col items-center">
@@ -465,7 +467,7 @@
 				/>
 				<div
 					bind:clientWidth={previewFrameWidth}
-					class="w-full overflow-hidden rounded-b-lg border border-zinc-700"
+					class="w-full overflow-hidden rounded-b-lg border border-border"
 				>
 					{#if previewMode === 'inner-scroll'}
 						<div
@@ -530,15 +532,15 @@
 			role="presentation"
 		>
 			<div
-				class="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-zinc-700 bg-zinc-900 p-6"
+				class="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-border bg-surface p-6"
 				role="dialog"
 				aria-modal="true"
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h2 class="text-lg font-semibold text-zinc-100">Prompt</h2>
+					<h2 class="text-lg font-semibold text-foreground">Prompt</h2>
 					<button
 						onclick={() => (showPromptModal = false)}
-						class="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+						class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
 						aria-label="Close modal"
 					>
 						<svg
@@ -553,7 +555,7 @@
 						</svg>
 					</button>
 				</div>
-				<p class="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300">
+				<p class="text-sm leading-relaxed whitespace-pre-wrap text-muted">
 					{generation.prompt}
 				</p>
 			</div>
@@ -569,24 +571,24 @@
 			role="presentation"
 		>
 			<div
-				class="w-full max-w-3xl rounded-xl border border-zinc-700 bg-zinc-900"
+				class="w-full max-w-3xl rounded-xl border border-border bg-surface"
 				role="dialog"
 				aria-modal="true"
 			>
-				<div class="flex items-center justify-between border-b border-zinc-700 p-3 sm:p-4">
-					<h2 class="text-base font-semibold text-zinc-100 sm:text-lg">
+				<div class="flex items-center justify-between border-b border-border p-3 sm:p-4">
+					<h2 class="text-base font-semibold text-foreground sm:text-lg">
 						{currentItem.modelName} - HTML
 					</h2>
 					<div class="flex items-center gap-2">
 						<button
 							onclick={copyHtml}
-							class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-600"
+							class="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
 						>
 							{codeCopied ? 'Copied!' : 'Copy'}
 						</button>
 						<button
 							onclick={() => (showCodeModal = false)}
-							class="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+							class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
 							aria-label="Close modal"
 						>
 							<svg
@@ -604,7 +606,7 @@
 				</div>
 				<textarea
 					readonly
-					class="h-[80vh] w-full resize-none overflow-auto bg-zinc-950 p-3 font-mono text-xs text-zinc-300 focus:outline-none sm:p-4 sm:text-sm"
+					class="h-[80vh] w-full resize-none overflow-auto bg-background p-3 font-mono text-xs text-muted focus:outline-none sm:p-4 sm:text-sm"
 					value={currentItem?.html ?? ''}
 				></textarea>
 			</div>
@@ -620,15 +622,15 @@
 			role="presentation"
 		>
 			<div
-				class="w-full max-w-2xl rounded-xl border border-zinc-700 bg-zinc-900"
+				class="w-full max-w-2xl rounded-xl border border-border bg-surface"
 				role="dialog"
 				aria-modal="true"
 			>
-				<div class="flex items-center justify-between border-b border-zinc-700 p-3 sm:p-4">
-					<h2 class="text-base font-semibold text-zinc-100 sm:text-lg">Add Models</h2>
+				<div class="flex items-center justify-between border-b border-border p-3 sm:p-4">
+					<h2 class="text-base font-semibold text-foreground sm:text-lg">Add Models</h2>
 					<button
 						onclick={() => (showAddModelModal = false)}
-						class="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+						class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
 						aria-label="Close modal"
 					>
 						<svg
@@ -646,13 +648,11 @@
 
 				<div class="p-3 sm:p-4">
 					{#if !userLoggedIn}
-						<div
-							class="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-center"
-						>
-							<p class="mb-3 text-sm text-zinc-300">Sign in to add models to this generation</p>
+						<div class="mb-4 rounded-lg border border-primary/20 bg-primary/10 p-4 text-center">
+							<p class="mb-3 text-sm text-muted">Sign in to add models to this generation</p>
 							<a
 								href={resolve(`/login?redirect=/generation/${generation.id}`)}
-								class="inline-block rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600"
+								class="inline-block rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
 							>
 								Sign In
 							</a>
@@ -683,7 +683,7 @@
 
 						{#if addModelError}
 							<div
-								class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+								class="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
 							>
 								{addModelError}
 							</div>
@@ -692,7 +692,7 @@
 						<button
 							onclick={handleAddModels}
 							disabled={isAddingModels || selectedModels.length === 0 || !userLoggedIn}
-							class="mt-4 w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-700"
+							class="mt-4 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-elevated"
 						>
 							{#if isAddingModels}
 								Adding models...

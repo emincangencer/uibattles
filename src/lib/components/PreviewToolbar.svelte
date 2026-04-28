@@ -82,17 +82,17 @@
 </script>
 
 <div
-	class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-zinc-700 bg-zinc-900 px-2 py-1 sm:px-4 sm:py-2"
+	class="flex w-full items-center justify-between rounded-t-lg border border-b-0 border-border bg-surface px-2 py-1 sm:px-4 sm:py-2"
 >
 	<div class="flex items-center gap-2">
 		<!-- Device Toggle -->
-		<div class="flex items-center gap-0.5 rounded-lg bg-zinc-800 px-0.5 py-0.5">
+		<div class="flex items-center gap-0.5 rounded-lg bg-surface-elevated px-0.5 py-0.5">
 			{#if screenType === 'desktop'}
 				<button
 					onclick={() => onDeviceChange('desktop')}
 					class="rounded p-1 transition-colors {device === 'desktop'
-						? 'bg-zinc-700 text-zinc-100'
-						: 'text-zinc-400 hover:text-zinc-200'}"
+						? 'bg-border text-foreground'
+						: 'text-muted-foreground hover:text-foreground'}"
 					aria-label="Desktop view"
 					title="Desktop view (1440px)"
 				>
@@ -114,8 +114,8 @@
 				<button
 					onclick={() => onDeviceChange('tablet')}
 					class="rounded p-1 transition-colors {device === 'tablet'
-						? 'bg-zinc-700 text-zinc-100'
-						: 'text-zinc-400 hover:text-zinc-200'}"
+						? 'bg-border text-foreground'
+						: 'text-muted-foreground hover:text-foreground'}"
 					aria-label="Tablet view"
 					title="Tablet view (768px)"
 				>
@@ -136,8 +136,8 @@
 			<button
 				onclick={() => onDeviceChange('mobile')}
 				class="rounded p-1 transition-colors {device === 'mobile'
-					? 'bg-zinc-700 text-zinc-100'
-					: 'text-zinc-400 hover:text-zinc-200'}"
+					? 'bg-border text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
 				aria-label="Mobile view"
 				title="Mobile view (375px)"
 			>
@@ -154,7 +154,7 @@
 				</svg>
 			</button>
 		</div>
-		<span class="text-xs text-zinc-500 sm:text-sm">{previewViewportWidth}px</span>
+		<span class="text-xs text-muted-foreground sm:text-sm">{previewViewportWidth}px</span>
 	</div>
 	<div class="flex items-center gap-2">
 		<!-- Preview Mode Toggle -->
@@ -162,7 +162,7 @@
 			type="button"
 			onclick={() =>
 				onPreviewModeChange(previewMode === 'inner-scroll' ? 'scaled' : 'inner-scroll')}
-			class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+			class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
 			aria-label="Toggle preview mode"
 			title={previewMode === 'inner-scroll'
 				? 'Scaled view - scrolls with page'
@@ -197,7 +197,7 @@
 		<button
 			type="button"
 			onclick={reloadPreview}
-			class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+			class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label="Reload preview"
 			title="Reload preview"
 			disabled={!currentItem}
@@ -219,7 +219,7 @@
 		<button
 			type="button"
 			onclick={openStandalonePreview}
-			class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+			class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label="Open preview in new tab"
 			title={canOpenStandalonePreview
 				? 'Open preview in new tab'
@@ -242,7 +242,7 @@
 		<button
 			type="button"
 			onclick={onOpenCodeModal}
-			class="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+			class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label="View code"
 			title="View code"
 			disabled={!currentItem}

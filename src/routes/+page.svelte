@@ -117,15 +117,15 @@
 <div class="px-4 py-12">
 	<div class="mb-12 text-center">
 		<h1 class="mb-4 text-5xl font-bold tracking-tight">
-			UI <span class="text-emerald-400">Battles</span>
+			UI <span class="text-primary">Battles</span>
 		</h1>
-		<p class="mx-auto mb-8 max-w-2xl text-lg text-zinc-400">
+		<p class="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
 			Compare how different AI models generate UI. Enter a prompt, select multiple models, and see
 			which one creates the best result.
 		</p>
 		<a
 			href={resolve('/generate')}
-			class="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-6 py-3 font-semibold text-zinc-950 transition-colors hover:bg-emerald-600"
+			class="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -152,10 +152,10 @@
 
 	{#if generationsList.length === 0 && !isLoading}
 		<div class="py-20 text-center">
-			<div class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900">
+			<div class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-surface">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					class="h-12 w-12 text-zinc-600"
+					class="h-12 w-12 text-muted-foreground"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
@@ -165,10 +165,10 @@
 					<path d="M3 9h18M9 21V9" />
 				</svg>
 			</div>
-			<h2 class="mb-2 text-xl font-semibold text-zinc-300">
+			<h2 class="mb-2 text-xl font-semibold text-muted">
 				{searchQuery ? 'No results found' : 'No battles yet'}
 			</h2>
-			<p class="mb-6 text-zinc-500">
+			<p class="mb-6 text-muted-foreground">
 				{searchQuery ? 'Try a different search term' : 'Create your first UI battle to get started'}
 			</p>
 		</div>

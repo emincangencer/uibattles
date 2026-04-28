@@ -34,7 +34,7 @@
 <div class="relative">
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
-		class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-zinc-500"
+		class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
 		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
@@ -48,12 +48,12 @@
 		value={inputValue}
 		oninput={handleInput}
 		{placeholder}
-		class="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2.5 pr-10 pl-10 text-sm text-zinc-100 placeholder-zinc-500 transition-colors focus:border-emerald-500 focus:outline-none"
+		class="w-full rounded-lg border border-border bg-surface py-2.5 pr-10 pl-10 text-sm text-foreground placeholder-muted-foreground transition-colors focus:border-primary focus:outline-none"
 	/>
 	{#if inputValue}
 		<button
 			onclick={handleClear}
-			class="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+			class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted"
 			aria-label="Clear search"
 		>
 			<svg

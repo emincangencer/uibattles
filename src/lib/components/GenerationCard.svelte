@@ -23,9 +23,9 @@
 
 <a
 	href={resolve('/generation/[id]', { id })}
-	class="group relative block overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition-all hover:border-zinc-700 hover:shadow-lg hover:shadow-emerald-500/5"
+	class="group relative block overflow-hidden rounded-xl border border-border bg-surface transition-all hover:border-muted-foreground hover:shadow-glow hover:shadow-lg"
 >
-	<div class="relative aspect-video overflow-hidden bg-zinc-950">
+	<div class="relative aspect-video overflow-hidden bg-background">
 		{#if preview}
 			<iframe
 				srcdoc={createSandboxedPreviewDocument(preview.html)}
@@ -34,24 +34,26 @@
 				sandbox="allow-scripts"
 			></iframe>
 			<div
-				class="absolute right-2 bottom-2 rounded bg-zinc-950/80 px-2 py-1 text-xs text-zinc-400 backdrop-blur-sm"
+				class="absolute right-2 bottom-2 rounded bg-background/80 px-2 py-1 text-xs text-muted-foreground backdrop-blur-sm"
 			>
 				{preview.modelName.split('/').pop()}
 			</div>
 		{:else}
-			<div class="flex h-full w-full items-center justify-center text-zinc-600">No preview</div>
+			<div class="flex h-full w-full items-center justify-center text-muted-foreground">
+				No preview
+			</div>
 		{/if}
 	</div>
 
 	<div class="p-4">
-		<h2 class="truncate font-semibold text-zinc-100 transition-colors group-hover:text-emerald-400">
+		<h2 class="truncate font-semibold text-foreground transition-colors group-hover:text-primary">
 			{name}
 		</h2>
-		<div class="mt-2 flex items-center justify-between text-sm text-zinc-500">
+		<div class="mt-2 flex items-center justify-between text-sm text-muted-foreground">
 			<span>{itemCount} model{itemCount !== 1 ? 's' : ''}</span>
 			<span>{formatDate(createdAt)}</span>
 		</div>
-		<div class="mt-2 flex items-center gap-4 text-xs text-zinc-500">
+		<div class="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
 			<span class="flex items-center gap-1">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"

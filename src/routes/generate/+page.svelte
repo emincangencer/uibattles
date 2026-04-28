@@ -325,7 +325,7 @@
 <div class="mx-auto max-w-4xl px-4 py-12">
 	<div class="mb-12 text-center">
 		<h1 class="mb-4 text-4xl font-bold">Generate UI</h1>
-		<p class="mx-auto max-w-2xl text-lg text-zinc-400">
+		<p class="mx-auto max-w-2xl text-lg text-muted-foreground">
 			Compare how different AI models render the same UI. Enter a prompt, select models, and see the
 			results.
 		</p>
@@ -334,27 +334,27 @@
 	<div class="space-y-8">
 		<!-- Name Input -->
 		<div>
-			<label for="name" class="mb-2 block text-sm font-medium text-zinc-300"> Name </label>
+			<label for="name" class="mb-2 block text-sm font-medium text-muted"> Name </label>
 			<input
 				type="text"
 				id="name"
 				bind:value={name}
 				placeholder="e.g., finance landing page, auth form"
 				disabled={isGenerating}
-				class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-transparent focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50"
+				class="w-full rounded-lg border border-border bg-surface px-4 py-3 text-foreground placeholder-muted-foreground focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
 			/>
 		</div>
 
 		<!-- Prompt Input -->
 		<div>
-			<label for="prompt" class="mb-2 block text-sm font-medium text-zinc-300"> Prompt </label>
+			<label for="prompt" class="mb-2 block text-sm font-medium text-muted"> Prompt </label>
 			<textarea
 				id="prompt"
 				bind:value={prompt}
 				rows="4"
 				placeholder="Describe the UI you want to generate..."
 				disabled={isGenerating}
-				class="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-transparent focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50"
+				class="w-full resize-none rounded-lg border border-border bg-surface px-4 py-3 text-foreground placeholder-muted-foreground focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
 			></textarea>
 			<div class="mt-3 flex flex-wrap gap-2">
 				{#each promptExamples as example (example)}
@@ -362,7 +362,7 @@
 						type="button"
 						onclick={() => selectExample(example)}
 						disabled={isGenerating}
-						class="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-700 disabled:opacity-50"
+						class="rounded-full bg-surface-elevated px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface disabled:opacity-50"
 					>
 						{example.slice(0, 40)}...
 					</button>
@@ -384,7 +384,9 @@
 
 		<!-- Error Message -->
 		{#if error}
-			<div class="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+			<div
+				class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
+			>
 				{error}
 			</div>
 		{/if}
@@ -393,7 +395,7 @@
 		<button
 			onclick={handleGenerate}
 			disabled={isGenerating}
-			class="w-full rounded-lg bg-emerald-500 py-4 text-lg font-semibold text-zinc-950 transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-700"
+			class="w-full rounded-lg bg-primary py-4 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-elevated"
 		>
 			{#if isGenerating}
 				Generating...
@@ -406,14 +408,14 @@
 		{#each generations as generation (generation.id)}
 			{@const allComplete = isAllComplete(generation)}
 			{@const hasErrorItems = hasErrors(generation)}
-			<div class="rounded-xl border border-zinc-700 bg-zinc-900 p-6">
+			<div class="rounded-xl border border-border bg-surface p-6">
 				<div class="mb-4 flex items-center justify-between">
 					<h2 class="text-xl font-semibold">{generation.name}</h2>
 					<div class="flex gap-2">
 						{#if !allComplete}
 							<button
 								onclick={() => handleAbort(generation.id)}
-								class="rounded-lg bg-red-500/20 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/30"
+								class="rounded-lg bg-destructive/20 px-4 py-2 text-sm text-destructive transition-colors hover:bg-destructive/30"
 							>
 								Abort
 							</button>
@@ -421,7 +423,7 @@
 						{#if allComplete}
 							<button
 								onclick={() => removeCompletedGeneration(generation.id)}
-								class="rounded-lg bg-zinc-700 px-4 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-600"
+								class="rounded-lg bg-surface-elevated px-4 py-2 text-sm text-muted transition-colors hover:bg-border"
 							>
 								Dismiss
 							</button>
@@ -429,7 +431,7 @@
 								href={resolve('/generation/[id]', { id: generation.id })}
 								target="_blank"
 								rel="noopener noreferrer"
-								class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-600"
+								class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
 							>
 								View Results →
 							</a>
@@ -440,36 +442,36 @@
 				<div class="space-y-3">
 					{#each generation.items as item (item.id || item.modelId)}
 						<div
-							class="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4"
+							class="flex items-center justify-between rounded-lg border border-border bg-surface-elevated/50 p-4"
 						>
 							<div class="flex items-center gap-3">
-								<span class="text-sm font-medium text-zinc-300">
+								<span class="text-sm font-medium text-muted">
 									{getModelDisplayName(item.modelName)}
 								</span>
 							</div>
 
 							<div class="flex items-center gap-3">
 								{#if item.status === 'pending'}
-									<span class="text-sm text-zinc-500">Waiting...</span>
+									<span class="text-sm text-muted-foreground">Waiting...</span>
 								{:else if item.status === 'generating'}
-									<span class="flex items-center gap-2 text-sm text-yellow-400">
-										<span class="h-2 w-2 animate-pulse rounded-full bg-yellow-400"></span>
+									<span class="flex items-center gap-2 text-sm text-warning">
+										<span class="h-2 w-2 animate-pulse rounded-full bg-warning"></span>
 										Generating...
 									</span>
 								{:else if item.status === 'completed'}
-									<span class="text-sm text-emerald-400">✓ Done</span>
+									<span class="text-sm text-primary">✓ Done</span>
 								{:else if item.status === 'error'}
 									<div class="flex items-center gap-2">
-										<span class="text-sm text-red-400">✗ {item.error}</span>
+										<span class="text-sm text-destructive">✗ {item.error}</span>
 										<button
 											onclick={() => handleRetryItem(generation.id, item.id)}
-											class="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 transition-colors hover:bg-red-500/30"
+											class="rounded bg-destructive/20 px-2 py-1 text-xs text-destructive transition-colors hover:bg-destructive/30"
 										>
 											Retry
 										</button>
 									</div>
 								{:else if item.status === 'aborted'}
-									<span class="text-sm text-zinc-500">⛔ Aborted</span>
+									<span class="text-sm text-muted-foreground">⛔ Aborted</span>
 								{/if}
 							</div>
 						</div>
@@ -477,7 +479,7 @@
 				</div>
 
 				{#if hasErrorItems && allComplete}
-					<p class="mt-4 text-sm text-zinc-400">
+					<p class="mt-4 text-sm text-muted-foreground">
 						Some models failed. You can retry individual items above.
 					</p>
 				{/if}

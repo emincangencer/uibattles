@@ -61,14 +61,14 @@
 	}
 </script>
 
-<header class="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
+<header class="sticky top-0 z-40 border-b border-border bg-surface/50 backdrop-blur-sm">
 	<div
 		class="mx-auto flex h-auto min-h-16 flex-wrap items-center justify-between gap-2 px-2 py-2 sm:flex-nowrap sm:gap-4 sm:px-4 sm:py-0"
 	>
 		<div class="flex min-w-0 items-center gap-2 sm:gap-4">
 			<a
 				href={resolve('/')}
-				class="text-zinc-400 transition-colors hover:text-zinc-200"
+				class="text-muted-foreground transition-colors hover:text-foreground"
 				aria-label="Back to home"
 			>
 				<svg
@@ -83,16 +83,18 @@
 				</svg>
 			</a>
 			<div class="min-w-0">
-				<h1 class="truncate text-base font-semibold text-zinc-100 sm:text-lg">
+				<h1 class="truncate text-base font-semibold text-foreground sm:text-lg">
 					{generation.name}
 				</h1>
-				<p class="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-zinc-500 sm:gap-x-2">
+				<p
+					class="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground sm:gap-x-2"
+				>
 					{#if creator}
-						<span class="text-zinc-400">{creator.name || 'Anonymous'}</span>
+						<span class="text-muted-foreground">{creator.name || 'Anonymous'}</span>
 					{/if}
 					<span>{formatDateTime(generation.createdAt)}</span>
 					{#if items[selectedModelIndex]?.contributorName && items[selectedModelIndex]?.contributorId !== creator?.id}
-						<span class="flex items-center gap-1 text-emerald-400" title="Model contributor">
+						<span class="flex items-center gap-1 text-primary" title="Model contributor">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								class="h-3 w-3"
@@ -147,11 +149,11 @@
 			<!-- Model Navigation -->
 			{#if items.length > 1}
 				<div
-					class="flex items-center gap-1 rounded-lg bg-zinc-800 px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5"
+					class="flex items-center gap-1 rounded-lg bg-surface-elevated px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5"
 				>
 					<button
 						onclick={prevModel}
-						class="rounded p-1 transition-colors hover:bg-zinc-700"
+						class="rounded p-1 transition-colors hover:bg-border"
 						aria-label="Previous model"
 					>
 						<svg
@@ -165,12 +167,14 @@
 							<path d="M15 18l-6-6 6-6" />
 						</svg>
 					</button>
-					<span class="min-w-[40px] text-center text-xs text-zinc-400 sm:min-w-[60px] sm:text-sm">
+					<span
+						class="min-w-[40px] text-center text-xs text-muted-foreground sm:min-w-[60px] sm:text-sm"
+					>
 						{items.length > 0 ? selectedModelIndex + 1 : 0} / {items.length}
 					</span>
 					<button
 						onclick={nextModel}
-						class="rounded p-1 transition-colors hover:bg-zinc-700"
+						class="rounded p-1 transition-colors hover:bg-border"
 						aria-label="Next model"
 					>
 						<svg
@@ -192,7 +196,7 @@
 				<select
 					value={selectedModelIndex}
 					onchange={(e) => selectModel(Number((e.target as HTMLSelectElement).value))}
-					class="max-w-[120px] rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
+					class="max-w-[120px] rounded-lg border border-border bg-surface-elevated px-2 py-1 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
 				>
 					{#each items as item, i (item.id)}
 						<option value={i}>{item.modelName}</option>
@@ -204,8 +208,8 @@
 			<button
 				onclick={onLike}
 				disabled={!userLoggedIn || isLiking}
-				class="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs whitespace-nowrap transition-colors hover:bg-zinc-700 disabled:opacity-50 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm
-					{isLiked ? 'border-red-500/50 text-red-400' : 'text-zinc-300'}"
+				class="flex items-center gap-1 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-xs whitespace-nowrap transition-colors hover:bg-border disabled:opacity-50 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm
+					{isLiked ? 'border-destructive/50 text-destructive' : 'text-muted'}"
 				title={userLoggedIn ? (isLiked ? 'Unlike' : 'Like') : 'Sign in to like'}
 			>
 				<svg
@@ -226,7 +230,7 @@
 			<!-- Add Model Button -->
 			<button
 				onclick={onOpenAddModelModal}
-				class="flex items-center gap-1 rounded-lg bg-emerald-500 px-2 py-1 text-xs font-medium whitespace-nowrap text-zinc-950 transition-colors hover:bg-emerald-600 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm"
+				class="flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-xs font-medium whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"

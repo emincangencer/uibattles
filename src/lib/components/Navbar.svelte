@@ -26,13 +26,13 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<header class="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
+<header class="sticky top-0 z-50 border-b border-border bg-surface/50 backdrop-blur-sm">
 	<div class="mx-auto flex h-16 items-center justify-between px-4 md:px-6">
 		<a
 			href={resolve('/')}
-			class="text-xl font-bold tracking-tight transition-colors hover:text-zinc-300"
+			class="text-xl font-bold tracking-tight transition-colors hover:text-muted"
 		>
-			UI<span class="text-emerald-400">Battles</span>
+			UI<span class="text-primary">Battles</span>
 		</a>
 		<div class="flex items-center gap-2 md:gap-3">
 			<a
@@ -40,7 +40,7 @@
 				target="_blank"
 				rel="noopener noreferrer"
 				aria-label="GitHub repository"
-				class="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+				class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -59,7 +59,7 @@
 			</a>
 			<a
 				href={resolve('/generate')}
-				class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-600 md:px-4 md:py-2"
+				class="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover md:px-4 md:py-2"
 			>
 				Generate
 			</a>
@@ -70,7 +70,7 @@
 						aria-label="User menu"
 						aria-expanded={menuOpen}
 						aria-haspopup="true"
-						class="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
 						onclick={() => (menuOpen = !menuOpen)}
 					>
 						<svg
@@ -90,13 +90,13 @@
 					</button>
 					{#if menuOpen}
 						<div
-							class="absolute top-full right-0 mt-2 w-48 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-lg"
+							class="absolute top-full right-0 mt-2 w-48 rounded-lg border border-border bg-surface-elevated py-1 shadow-lg"
 							role="menu"
 						>
 							<a
 								href={resolve('/account')}
 								onclick={closeMenu}
-								class="block px-4 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+								class="block px-4 py-2 text-sm text-muted transition-colors hover:bg-surface hover:text-foreground"
 								role="menuitem"
 							>
 								Account
@@ -110,7 +110,7 @@
 							>
 								<button
 									type="submit"
-									class="block w-full px-4 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+									class="block w-full px-4 py-2 text-left text-sm text-muted transition-colors hover:bg-surface hover:text-foreground"
 									role="menuitem"
 								>
 									Sign out
@@ -122,7 +122,7 @@
 			{:else}
 				<a
 					href={resolve('/login')}
-					class="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 md:px-4 md:py-2"
+					class="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold text-muted transition-colors hover:bg-surface-elevated hover:text-foreground md:px-4 md:py-2"
 				>
 					Sign in
 				</a>

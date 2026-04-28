@@ -9,11 +9,13 @@
 	<title>Login - UI Battles</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
-	<div class="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-8">
+<div class="flex min-h-screen items-center justify-center bg-background px-4">
+	<div class="w-full max-w-md rounded-xl border border-border bg-surface p-8">
 		<div class="mb-8 text-center">
-			<h1 class="text-2xl font-bold text-zinc-100">Sign in</h1>
-			<p class="mt-2 text-zinc-400">Sign in to access Generate and create your UI battles</p>
+			<h1 class="text-2xl font-bold text-foreground">Sign in</h1>
+			<p class="mt-2 text-muted-foreground">
+				Sign in to access Generate and create your UI battles
+			</p>
 		</div>
 
 		<form method="post" action="?/signInSocial" use:enhance class="space-y-4">
@@ -21,7 +23,7 @@
 			<input type="hidden" name="callbackURL" value={redirectTo} />
 			<button
 				type="submit"
-				class="flex w-full items-center justify-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 font-medium text-zinc-950 transition hover:bg-zinc-200"
+				class="flex w-full items-center justify-center gap-3 rounded-lg bg-foreground px-4 py-3 font-medium text-background transition hover:opacity-90"
 			>
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24">
 					<path
@@ -45,7 +47,7 @@
 			</button>
 		</form>
 
-		<p class="mt-6 text-center text-sm text-zinc-500">
+		<p class="mt-6 text-center text-sm text-muted-foreground">
 			By signing in, you agree to our Terms of Service
 		</p>
 	</div>
