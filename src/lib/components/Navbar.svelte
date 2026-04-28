@@ -59,7 +59,7 @@
 			</a>
 			<a
 				href={resolve('/generate')}
-				class="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover md:px-4 md:py-2"
+				class="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover md:px-4 md:py-2"
 			>
 				Generate
 			</a>
