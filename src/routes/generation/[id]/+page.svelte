@@ -472,7 +472,7 @@
 					{#if previewMode === 'inner-scroll'}
 						<div
 							class="mx-auto overflow-auto"
-							style="width: {previewViewportWidth}px; height: {innerScrollContainerHeight};"
+							style="width: min({previewViewportWidth}px, 100%); height: {innerScrollContainerHeight};"
 						>
 							<iframe
 								bind:this={previewIframe}
@@ -487,7 +487,7 @@
 								})}
 								title="{device} preview"
 								class="block"
-								style="width: {previewViewportWidth}px; height: 100%;"
+								style="width: 100%; max-width: {previewViewportWidth}px; height: 100%;"
 								sandbox="allow-scripts"
 								scrolling="auto"
 							></iframe>
