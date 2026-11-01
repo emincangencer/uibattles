@@ -33,7 +33,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@tailwindcss/vite": "^4.3.2",
 		"@types/node": "^25.9.5",
-		"better-auth": "^1.6.23",
+		"better-auth": "^1.7.7",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
 		"eslint": "^10.6.0",
